@@ -49,6 +49,7 @@ yt channel list
 
 # Broadcasts
 yt broadcast list
+yt broadcast get BROADCAST_ID
 yt broadcast create --title "Friday Stream" --start "2026-01-24T10:00:00Z" --privacy unlisted
 yt broadcast update BROADCAST_ID --title "New Title"
 yt broadcast delete BROADCAST_ID --confirm
@@ -57,6 +58,7 @@ yt broadcast transition BROADCAST_ID live
 
 # RTMP Streams
 yt stream list
+yt stream get STREAM_ID
 yt stream create --title "Main Camera" --resolution 1080p --frame-rate 30fps
 yt stream update STREAM_ID --title "Backup Camera"
 yt stream delete STREAM_ID --confirm
@@ -81,17 +83,19 @@ All commands support interactive prompts. Flags skip the prompt for scripting us
 
 ## Global Options
 
+Global options can be placed anywhere in the command:
+
 ```bash
 # Output format: table (default), json, csv
-yt --format json broadcast list
-yt --format csv stream list
+yt broadcast list --format json
+yt stream list --format csv
 
 # Verbose mode (debug logs to stderr)
-yt -v broadcast list
-yt --verbose stream create
+yt broadcast list -v
+yt stream create --verbose
 
 # Combine: pipe JSON while seeing debug info
-yt -v --format json broadcast list 2>/dev/null | jq .
+yt broadcast list --format json -v 2>/dev/null | jq .
 ```
 
 ## Shell Autocomplete
