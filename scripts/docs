@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+MODULES="stream_tools stream_tools.auth stream_tools.models stream_tools.services"
+
+case "${1:-serve}" in
+  build)
+    pdoc -d google $MODULES -o docs/
+    echo "Docs written to docs/"
+    ;;
+  serve|"")
+    echo "Serving docs at http://localhost:8080"
+    pdoc -d google $MODULES
+    ;;
+  *)
+    echo "Usage: scripts/docs [build|serve]"
+    exit 1
+    ;;
+esac
