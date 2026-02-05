@@ -9,7 +9,7 @@ from rich.console import Console
 from stream_tools.exceptions import StreamToolsError
 from stream_tools.models.common import BroadcastStatus, StreamFrameRate, StreamResolution
 from stream_tools_cli.formatting import output
-from stream_tools_cli.state import common_options
+from stream_tools_cli.state import common_options, config
 
 from stream_tools_cli.commands import get_client
 
@@ -473,17 +473,18 @@ def watch(
                     color = "red"
                     is_healthy = False
 
-                console.print(f"[dim]{timestamp}[/dim] Health: [{color}]{health}[/{color}]", end="")
-
                 if is_healthy:
                     consecutive_failures = 0
                     notified_failure = False
-                    console.print()
+                    # Only print healthy status in verbose mode
+                    if config.verbose:
+                        console.print(f"[dim]{timestamp}[/dim] Health: [{color}]{health}[/{color}]")
                     # Use normal interval when healthy
                     time.sleep(interval)
                 else:
                     consecutive_failures += 1
-                    console.print(f" [dim](failures: {consecutive_failures}/{fail_count})[/dim]")
+                    # Always print unhealthy status
+                    console.print(f"[dim]{timestamp}[/dim] Health: [{color}]{health}[/{color}] [dim](failures: {consecutive_failures}/{fail_count})[/dim]")
 
                     # Send failure notification on first failure
                     if consecutive_failures == 1 and not notified_failure:

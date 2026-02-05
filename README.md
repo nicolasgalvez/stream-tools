@@ -89,6 +89,18 @@ yt mod remove MODERATOR_ID --confirm
 yt ban add LIVE_CHAT_ID CHANNEL_ID --type permanent
 yt ban add LIVE_CHAT_ID CHANNEL_ID --type temporary --duration 300
 yt ban remove BAN_ID --confirm
+
+# AzuraCast station control (requires AZURACAST_* env vars)
+yt azuracast status
+yt azuracast restart
+yt azuracast stop
+yt azuracast start
+
+# Stream health monitoring with auto-restart
+yt stream watch STREAM_ID                    # Monitor stream health
+yt stream watch STREAM_ID --no-restart       # Monitor only, no auto-restart
+yt stream watch STREAM_ID --interval 60      # Check every 60s instead of 300s
+yt stream watch STREAM_ID --discord URL      # Send notifications to Discord
 ```
 
 All commands support interactive prompts. Flags skip the prompt for scripting use.
@@ -132,6 +144,22 @@ Three methods, tried in priority order:
 Switching accounts:
 - `yt auth login --force` re-opens the consent flow with the account/channel picker
 - `yt channel list` shows which YouTube channel the current credentials are for
+
+### Headless/Remote Deployment
+
+For servers without a browser (Docker, VPS, etc.):
+
+1. **Login locally** to get credentials:
+   ```bash
+   yt auth login
+   ```
+
+2. **Export credentials** to `.env`:
+   ```bash
+   ./scripts/export-yt-credentials
+   ```
+
+3. **Copy `.env`** to your remote server. The CLI will use the env vars automatically.
 
 ## Library Usage
 
@@ -202,5 +230,9 @@ src/
 └── stream_tools_cli/       # Thin CLI wrapper
     ├── app.py              # Typer app + sub-app registration
     ├── formatting.py       # Rich tables/panels
+    ├── azuracast.py        # AzuraCast API client
+    ├── notifications.py    # Discord webhook notifications
     └── commands/           # One module per command group
+scripts/
+└── export-yt-credentials   # Export OAuth tokens to .env for headless deploy
 ```
