@@ -1,6 +1,6 @@
 """Broadcast service for YouTube Live broadcasts."""
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from googleapiclient.errors import HttpError
 
@@ -91,19 +91,41 @@ class BroadcastService(BaseService):
     def create(
         self,
         title: str,
-        scheduled_start: datetime,
+        scheduled_start: datetime | None = None,
         privacy: PrivacyStatus = PrivacyStatus.PRIVATE,
         description: str = "",
+        enable_auto_start: bool = True,
+        enable_auto_stop: bool = True,
+        enable_dvr: bool = False,
+        enable_embed: bool = True,
+        enable_closed_captions: bool = False,
+        closed_captions_type: str = "closedCaptionsDisabled",
+        enable_low_latency: bool = False,
+        latency_preference: str = "normal",
+        projection: str = "rectangular",
+        record_from_start: bool = True,
+        made_for_kids: bool = False,
     ) -> Broadcast:
         """Create a new broadcast.
-
-        The broadcast is created with auto-start and auto-stop enabled.
 
         Args:
             title: Display title for the broadcast.
             scheduled_start: When the broadcast is planned to go live.
+                If None, defaults to now (immediately ready to go live).
             privacy: Visibility setting (public, unlisted, or private).
             description: Optional description text.
+            enable_auto_start: Start broadcast when stream goes live (default True).
+            enable_auto_stop: End broadcast when stream disconnects (default True).
+                Set to False for long-running streams that may have brief disconnections.
+            enable_dvr: Allow viewers to rewind/seek in the live stream (default False).
+            enable_embed: Allow embedding on other sites (default True).
+            enable_closed_captions: Enable closed captions (default False).
+            closed_captions_type: Type of captions (closedCaptionsDisabled, closedCaptionsHttpPost, closedCaptionsEmbedded).
+            enable_low_latency: Enable low latency mode (default False).
+            latency_preference: Latency setting (normal, low, ultraLow).
+            projection: Video projection (rectangular, 360).
+            record_from_start: Record from the start (default True).
+            made_for_kids: Whether the broadcast is made for kids (default False).
 
         Returns:
             The newly created Broadcast.
@@ -111,6 +133,11 @@ class BroadcastService(BaseService):
         Raises:
             APIError: If the YouTube API request fails.
         """
+        # YouTube API requires scheduledStartTime to be in the future
+        # Current time works - broadcast auto-starts when stream connects
+        if scheduled_start is None:
+            scheduled_start = datetime.now(timezone.utc)
+
         body = {
             "snippet": {
                 "title": title,
@@ -119,10 +146,19 @@ class BroadcastService(BaseService):
             },
             "status": {
                 "privacyStatus": privacy.value,
+                "selfDeclaredMadeForKids": made_for_kids,
             },
             "contentDetails": {
-                "enableAutoStart": True,
-                "enableAutoStop": True,
+                "enableAutoStart": enable_auto_start,
+                "enableAutoStop": enable_auto_stop,
+                "enableDvr": enable_dvr,
+                "enableEmbed": enable_embed,
+                "enableClosedCaptions": enable_closed_captions,
+                "closedCaptionsType": closed_captions_type,
+                "enableLowLatency": enable_low_latency,
+                "latencyPreference": latency_preference,
+                "projection": projection,
+                "recordFromStart": record_from_start,
             },
         }
 
@@ -264,3 +300,25 @@ class BroadcastService(BaseService):
             self._handle_api_error(e, "Broadcast")
 
         return Broadcast.from_api_response(response)
+
+    def set_thumbnail(self, broadcast_id: str, image_path: str) -> None:
+        """Set a custom thumbnail for a broadcast.
+
+        Args:
+            broadcast_id: The broadcast to set the thumbnail for.
+            image_path: Path to the image file (JPEG, PNG, GIF, BMP).
+
+        Raises:
+            APIError: If the YouTube API request fails.
+        """
+        from googleapiclient.http import MediaFileUpload
+
+        media = MediaFileUpload(image_path, mimetype="image/jpeg", resumable=True)
+
+        try:
+            self.youtube.thumbnails().set(
+                videoId=broadcast_id,
+                media_body=media,
+            ).execute()
+        except HttpError as e:
+            self._handle_api_error(e, "Thumbnail")

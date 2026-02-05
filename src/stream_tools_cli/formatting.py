@@ -17,7 +17,11 @@ console = Console()
 def output(items: list, columns: dict[str, Callable[[Any], str]], title: str = "") -> None:
     """Dispatch output based on global format setting."""
     if config.format == OutputFormat.json:
-        rows = [{name: accessor(item) for name, accessor in columns.items()} for item in items]
+        # Use to_dict() if available for proper schema, otherwise fall back to columns
+        if items and hasattr(items[0], "to_dict"):
+            rows = [item.to_dict() for item in items]
+        else:
+            rows = [{name: accessor(item) for name, accessor in columns.items()} for item in items]
         print(json.dumps(rows, indent=2))
     elif config.format == OutputFormat.csv:
         buf = io.StringIO()

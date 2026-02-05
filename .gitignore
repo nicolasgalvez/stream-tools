@@ -14,3 +14,7 @@ client_secret*.json
 htmlcov/
 .coverage
 docs/
+*.log
+*.tsv
+*.liq
+template.json

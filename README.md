@@ -2,7 +2,19 @@
 
 CLI and Python library for managing YouTube Live Streams via the YouTube Live Streaming API.
 
-## Setup
+## Installation
+
+### Global Install (recommended)
+
+Install with [pipx](https://pipx.pypa.io/) to use `yt` anywhere without activating a venv:
+
+```bash
+brew install pipx
+pipx ensurepath  # adds ~/.local/bin to PATH (restart shell after)
+pipx install .
+```
+
+### Development Setup
 
 ```bash
 python3.11 -m venv .venv

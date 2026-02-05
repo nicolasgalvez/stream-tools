@@ -70,6 +70,40 @@ class StreamHealthStatus(str, Enum):
     NO_DATA = "noData"
 
 
+class IssueSeverity(str, Enum):
+    """Severity level for stream configuration issues."""
+
+    ERROR = "error"
+    WARNING = "warning"
+    INFO = "info"
+
+
+@dataclass
+class ConfigurationIssue:
+    """A configuration issue detected on an active stream.
+
+    Attributes:
+        type: Issue type code (e.g., 'audioCodecMismatch', 'bitrateLow').
+        severity: How severe the issue is (error, warning, info).
+        reason: Short human-readable reason.
+        description: Detailed description of the issue.
+    """
+
+    type: str
+    severity: IssueSeverity
+    reason: str
+    description: str
+
+    def to_dict(self) -> dict:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "type": self.type,
+            "severity": self.severity.value,
+            "reason": self.reason,
+            "description": self.description,
+        }
+
+
 @dataclass
 class PageResult(Generic[T]):
     """Paginated result from the YouTube API.
