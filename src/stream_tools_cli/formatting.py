@@ -23,6 +23,14 @@ def output(items: list, columns: dict[str, Callable[[Any], str]], title: str = "
         else:
             rows = [{name: accessor(item) for name, accessor in columns.items()} for item in items]
         print(json.dumps(rows, indent=2))
+    elif config.format == OutputFormat.ids:
+        for item in items:
+            # Use .id attribute if available, otherwise first column value
+            if hasattr(item, "id"):
+                print(item.id)
+            else:
+                first_accessor = next(iter(columns.values()))
+                print(first_accessor(item))
     elif config.format == OutputFormat.csv:
         buf = io.StringIO()
         writer = csv.DictWriter(buf, fieldnames=list(columns.keys()))

@@ -17,6 +17,7 @@ class OutputFormat(str, Enum):
     table = "table"
     json = "json"
     csv = "csv"
+    ids = "ids"
 
 
 @dataclass
@@ -63,7 +64,7 @@ def common_options(f: F) -> F:
             "format",
             inspect.Parameter.KEYWORD_ONLY,
             default=typer.Option(
-                OutputFormat.table, "--format", help="Output format: table, json, csv"
+                OutputFormat.table, "--format", help="Output format: table, json, csv, ids"
             ),
             annotation=OutputFormat,
         ),
