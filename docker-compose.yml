@@ -5,3 +5,5 @@ services:
     volumes:
       - ${HOME}/.config/stream-tools:/home/appuser/.config/stream-tools
     restart: unless-stopped
+    entrypoint: ["sh", "-c"]
+    command: ["exec yt stream watch $(yt stream list --format ids | head -1)"]
