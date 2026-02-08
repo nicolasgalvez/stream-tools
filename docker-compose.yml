@@ -1,0 +1,7 @@
+services:
+  stream-tools:
+    build: .
+    env_file: .env
+    volumes:
+      - ${HOME}/.config/stream-tools:/home/appuser/.config/stream-tools
+    restart: unless-stopped
