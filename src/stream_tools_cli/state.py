@@ -82,5 +82,5 @@ def common_options(f: F) -> F:
         return f(*args, **kwargs)
 
     # Set the new signature - this is what Typer inspects
-    wrapper.__signature__ = new_sig  # type: ignore
-    return wrapper  # type: ignore
+    wrapper.__signature__ = new_sig  # type: ignore[assignment]  # signature intentionally replaced for Typer discovery
+    return wrapper  # type: ignore[return-value]  # wrapper accepts injected kwargs, typesafe at runtime
