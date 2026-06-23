@@ -50,7 +50,7 @@ class AzuraCastClient:
 
     def _post(self, path: str) -> dict:
         """Make POST request to API."""
-        response = self.session.post(self._url(path))
+        response = self.session.post(self._url(path), timeout=30)
         response.raise_for_status()
         return response.json()
 
@@ -73,21 +73,23 @@ class AzuraCastClient:
     def get_status(self) -> dict:
         """Get station info."""
         response = self.session.get(
-            urljoin(self.config.url, f"/api/station/{self.config.station_id}")
+            urljoin(self.config.url, f"/api/station/{self.config.station_id}"),
+            timeout=30,
         )
         response.raise_for_status()
         return response.json()
 
     def get_service_status(self) -> dict:
         """Get station service status (backend/frontend running state)."""
-        response = self.session.get(self._url("status"))
+        response = self.session.get(self._url("status"), timeout=30)
         response.raise_for_status()
         return response.json()
 
     def get_nowplaying(self) -> dict:
         """Get now playing info including listeners."""
         response = self.session.get(
-            urljoin(self.config.url, f"/api/nowplaying/{self.config.station_id}")
+            urljoin(self.config.url, f"/api/nowplaying/{self.config.station_id}"),
+            timeout=30,
         )
         response.raise_for_status()
         return response.json()
