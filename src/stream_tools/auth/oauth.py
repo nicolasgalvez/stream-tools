@@ -2,11 +2,14 @@
 
 import json
 import os
+import tempfile
+import threading
 from pathlib import Path
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
+from loguru import logger
 
 from stream_tools.auth.credentials import AuthConfig, AuthMethod
 from stream_tools.exceptions import AuthenticationError
@@ -34,6 +37,7 @@ class OAuthManager:
     def __init__(self, config: AuthConfig | None = None):
         self.config = config or AuthConfig()
         self._credentials: Credentials | None = None
+        self._lock = threading.Lock()
 
     @property
     def credentials(self) -> Credentials:
@@ -42,14 +46,16 @@ class OAuthManager:
         Raises:
             AuthenticationError: If not yet authenticated.
         """
-        if self._credentials is None:
-            raise AuthenticationError("Not authenticated. Run 'yt auth login' first.")
-        return self._credentials
+        with self._lock:
+            if self._credentials is None:
+                raise AuthenticationError("Not authenticated. Run 'yt auth login' first.")
+            return self._credentials
 
     @property
     def is_authenticated(self) -> bool:
         """Check if valid (non-expired) credentials are available."""
-        return self._credentials is not None and self._credentials.valid
+        with self._lock:
+            return self._credentials is not None and self._credentials.valid
 
     def auto_authenticate(self) -> AuthMethod:
         """Try all auth methods in priority order.
@@ -61,23 +67,24 @@ class OAuthManager:
             AuthenticationError: If all methods fail (e.g. no credentials
                 available and interactive flow cannot run).
         """
-        # 1. Try environment variables
-        try:
-            self._authenticate_from_env()
-            return AuthMethod.ENVIRONMENT
-        except AuthenticationError:
-            pass
+        with self._lock:
+            # 1. Try environment variables
+            try:
+                self._authenticate_from_env_unlocked()
+                return AuthMethod.ENVIRONMENT
+            except AuthenticationError:
+                pass
 
-        # 2. Try cached token file
-        try:
-            self._authenticate_from_token_file()
-            return AuthMethod.TOKEN_FILE
-        except AuthenticationError:
-            pass
+            # 2. Try cached token file
+            try:
+                self._authenticate_from_token_file_unlocked()
+                return AuthMethod.TOKEN_FILE
+            except AuthenticationError:
+                pass
 
-        # 3. Interactive browser flow
-        self._authenticate_interactive()
-        return AuthMethod.INTERACTIVE
+            # 3. Interactive browser flow
+            self._authenticate_interactive_unlocked()
+            return AuthMethod.INTERACTIVE
 
     def authenticate(self, method: AuthMethod | None = None) -> AuthMethod:
         """Authenticate using a specific method, or auto if None.
@@ -122,16 +129,17 @@ class OAuthManager:
         if not client_id or not client_secret:
             client_id, client_secret = self._read_client_secret_file()
 
-        self._credentials = Credentials(
-            token=None,
-            refresh_token=refresh_token,
-            token_uri="https://oauth2.googleapis.com/token",
-            client_id=client_id,
-            client_secret=client_secret,
-            scopes=self.config.scopes,
-        )
-        self._refresh_if_needed()
-        self._save_credentials()
+        with self._lock:
+            self._credentials = Credentials(
+                token=None,
+                refresh_token=refresh_token,
+                token_uri="https://oauth2.googleapis.com/token",
+                client_id=client_id,
+                client_secret=client_secret,
+                scopes=self.config.scopes,
+            )
+            self._refresh_if_needed_unlocked()
+            self._save_credentials_unlocked()
 
     def _read_client_secret_file(self) -> tuple[str, str]:
         """Read client_id and client_secret from the stored client_secret.json."""
@@ -151,9 +159,10 @@ class OAuthManager:
 
     def logout(self) -> None:
         """Remove cached credentials and delete the token file."""
-        self._credentials = None
-        if self.config.token_path.exists():
-            self.config.token_path.unlink()
+        with self._lock:
+            self._credentials = None
+            if self.config.token_path.exists():
+                self.config.token_path.unlink()
 
     def get_status(self) -> dict[str, str | bool]:
         """Return current auth status info.
@@ -178,6 +187,34 @@ class OAuthManager:
 
     def _authenticate_from_env(self) -> None:
         """Build credentials from environment variables."""
+        with self._lock:
+            self._authenticate_from_env_unlocked()
+
+    def _authenticate_from_token_file(self) -> None:
+        """Load credentials from cached token file."""
+        with self._lock:
+            self._authenticate_from_token_file_unlocked()
+
+    def _authenticate_interactive(self, force_prompt: bool = False) -> None:
+        """Run interactive browser-based OAuth flow."""
+        with self._lock:
+            self._authenticate_interactive_unlocked(force_prompt=force_prompt)
+
+    def reauth(self) -> None:
+        """Force re-authentication, showing the account/channel picker."""
+        self._authenticate_interactive(force_prompt=True)
+
+    def _refresh_if_needed(self) -> None:
+        """Refresh credentials if expired."""
+        with self._lock:
+            self._refresh_if_needed_unlocked()
+
+    def _save_credentials(self) -> None:
+        """Save credentials to the token file for later reuse."""
+        with self._lock:
+            self._save_credentials_unlocked()
+
+    def _authenticate_from_env_unlocked(self) -> None:
         client_id = os.environ.get(self.config.client_id_env)
         client_secret = os.environ.get(self.config.client_secret_env)
         refresh_token = os.environ.get(self.config.refresh_token_env)
@@ -197,22 +234,20 @@ class OAuthManager:
             client_secret=client_secret,
             scopes=self.config.scopes,
         )
-        self._refresh_if_needed()
+        self._refresh_if_needed_unlocked()
 
-    def _authenticate_from_token_file(self) -> None:
-        """Load credentials from cached token file."""
+    def _authenticate_from_token_file_unlocked(self) -> None:
         if not self.config.token_path.exists():
             raise AuthenticationError(f"Token file not found: {self.config.token_path}")
 
         self._credentials = Credentials.from_authorized_user_file(
             str(self.config.token_path), self.config.scopes
         )
-        self._refresh_if_needed()
+        self._refresh_if_needed_unlocked()
         # Re-save in case the token was refreshed
-        self._save_credentials()
+        self._save_credentials_unlocked()
 
-    def _authenticate_interactive(self, force_prompt: bool = False) -> None:
-        """Run interactive browser-based OAuth flow."""
+    def _authenticate_interactive_unlocked(self, force_prompt: bool = False) -> None:
         if not self.config.client_secret_path.exists():
             raise AuthenticationError(
                 f"Client secret file not found: {self.config.client_secret_path}\n"
@@ -227,26 +262,24 @@ class OAuthManager:
         if force_prompt:
             kwargs["prompt"] = "consent"
         self._credentials = flow.run_local_server(port=0, **kwargs)
-        self._save_credentials()
+        self._save_credentials_unlocked()
 
-    def reauth(self) -> None:
-        """Force re-authentication, showing the account/channel picker."""
-        self._authenticate_interactive(force_prompt=True)
-
-    def _refresh_if_needed(self) -> None:
-        """Refresh credentials if expired."""
+    def _refresh_if_needed_unlocked(self) -> None:
         if self._credentials and self._credentials.expired and self._credentials.refresh_token:
             try:
-                self._credentials.refresh(Request())
+                request = Request()
+                # TODO: Configure a transport-level timeout for credential refresh once the
+                # installed google-auth version exposes timeout control on Credentials.refresh().
+                self._credentials.refresh(request)
             except Exception as e:
+                logger.warning("Token refresh failed", exc_info=True)
                 self._credentials = None
                 raise AuthenticationError(f"Failed to refresh token: {e}") from e
 
-    def _save_credentials(self) -> None:
-        """Save credentials to the token file for later reuse."""
+    def _save_credentials_unlocked(self) -> None:
         if self._credentials is None:
             return
-        self.config.ensure_config_dir()
+
         token_data = {
             "token": self._credentials.token,
             "refresh_token": self._credentials.refresh_token,
@@ -255,7 +288,21 @@ class OAuthManager:
             "client_secret": self._credentials.client_secret,
             "scopes": self._credentials.scopes,
         }
-        self.config.token_path.write_text(json.dumps(token_data))
+
+        token_path = self.config.token_path
+        token_path.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp_path = tempfile.mkstemp(dir=str(token_path.parent), suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w") as file_obj:
+                json.dump(token_data, file_obj, indent=2)
+            os.chmod(tmp_path, 0o600)
+            os.replace(tmp_path, str(token_path))
+        except Exception:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise
 
     def run_flow_for_client_secret(self, client_secret_path: Path) -> None:
         """Run OAuth flow using a specific client_secret.json file.
@@ -265,8 +312,9 @@ class OAuthManager:
         Args:
             client_secret_path: Path to the client_secret.json file to use.
         """
-        flow = InstalledAppFlow.from_client_secrets_file(
-            str(client_secret_path), self.config.scopes
-        )
-        self._credentials = flow.run_local_server(port=0)
-        self._save_credentials()
+        with self._lock:
+            flow = InstalledAppFlow.from_client_secrets_file(
+                str(client_secret_path), self.config.scopes
+            )
+            self._credentials = flow.run_local_server(port=0)
+            self._save_credentials_unlocked()
