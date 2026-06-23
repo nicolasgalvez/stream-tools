@@ -18,3 +18,4 @@ docs/
 *.tsv
 *.liq
 template.json
+.DS_Store
