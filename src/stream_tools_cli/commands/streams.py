@@ -208,6 +208,7 @@ def update(
 
 
 @app.command()
+@common_options
 def delete(
     stream_id: str = typer.Argument(..., help="Stream ID"),
     confirm: bool = typer.Option(False, "--confirm", "-y", help="Skip confirmation"),
@@ -228,6 +229,7 @@ def delete(
 
 
 @app.command()
+@common_options
 def test(
     stream_id: str = typer.Argument(..., help="Stream ID to test"),
     duration: int = typer.Option(30, "--duration", "-d", help="Test duration in seconds"),
@@ -242,6 +244,8 @@ def test(
     if not shutil.which("ffmpeg"):
         console.print("[red]Error:[/red] ffmpeg not found. Install it with: brew install ffmpeg")
         raise typer.Exit(1)
+
+    process = None
 
     try:
         client = get_client()
@@ -277,12 +281,7 @@ def test(
             "-f", "flv", rtmp_url,
         ]
 
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-        )
+        process = subprocess.Popen(cmd)
 
         # Wait a few seconds then check health
         console.print("Waiting for stream to connect...")
@@ -306,7 +305,8 @@ def test(
         console.print("[green]Test stream complete.[/green]")
 
     except KeyboardInterrupt:
-        process.terminate()
+        if process is not None:
+            process.terminate()
         console.print("\n[yellow]Test stream stopped.[/yellow]")
     except StreamToolsError as e:
         console.print(f"[red]Error:[/red] {e}")
@@ -314,6 +314,7 @@ def test(
 
 
 @app.command()
+@common_options
 def watch(
     stream_id: str = typer.Argument(..., help="Stream ID to monitor"),
     interval: int = typer.Option(300, "--interval", "-i", help="Normal check interval in seconds"),
@@ -322,6 +323,7 @@ def watch(
     restart_wait: int = typer.Option(180, "--restart-wait", "-w", help="Seconds to wait after restart"),
     restart_on_fail: bool = typer.Option(True, "--restart/--no-restart", help="Restart AzuraCast on failure"),
     max_restarts: int = typer.Option(10, "--max-restarts", "-m", help="Max restart attempts before giving up"),
+    max_api_errors: int = typer.Option(10, "--max-api-errors", help="Max consecutive API errors before exiting"),
     discord_webhook: str = typer.Option(None, "--discord", "-d", help="Discord webhook URL (or set DISCORD_WEBHOOK_URL)"),
 ) -> None:
     """Monitor stream health and optionally restart AzuraCast on failure.
@@ -338,6 +340,8 @@ def watch(
     """
     import time
     from datetime import datetime
+
+    from loguru import logger
 
     from stream_tools_cli.azuracast import get_azuracast_client
     from stream_tools_cli.notifications import (
@@ -367,6 +371,7 @@ def watch(
 
     client = get_client()
     consecutive_failures = 0
+    consecutive_api_errors = 0
     total_restarts = 0
     notified_failure = False  # Track if we already notified about current failure
 
@@ -403,8 +408,8 @@ def watch(
                     broadcast_status = b.life_cycle_status.value
                     broadcast_url = f"https://youtube.com/live/{b.id}"
                     break
-    except Exception:
-        pass
+    except StreamToolsError:
+        logger.debug("Broadcast lookup failed", exc_info=True)
 
     # Get AzuraCast station info
     station_name = "Unknown"
@@ -418,7 +423,7 @@ def watch(
                 song = np["now_playing"].get("song", {})
                 now_playing = f"{song.get('artist', '?')} - {song.get('title', '?')}"
         except Exception:
-            pass
+            logger.debug("AzuraCast lookup failed", exc_info=True)
 
     console.print(f"[bold]Station:[/bold] {station_name}")
     if broadcast_title:
@@ -448,7 +453,7 @@ def watch(
         startup_msg += f"**Stream Health:** {initial_health}\n"
         if now_playing:
             startup_msg += f"**Now Playing:** {now_playing}\n"
-        startup_msg += f"\n**Settings:**\n"
+        startup_msg += "\n**Settings:**\n"
         startup_msg += f"• Check interval: {interval}s\n"
         startup_msg += f"• Fail interval: {fail_interval}s\n"
         startup_msg += f"• Failures before restart: {fail_count}\n"
@@ -459,6 +464,7 @@ def watch(
         while True:
             try:
                 stream = client.streams.get(stream_id)
+                consecutive_api_errors = 0
                 health = stream.health_status.value if stream.health_status else "noData"
                 timestamp = datetime.now().strftime("%H:%M:%S")
 
@@ -506,7 +512,7 @@ def watch(
                             )
                             raise typer.Exit(1)
 
-                        console.print(f"[yellow]Restarting AzuraCast backend...[/yellow]")
+                        console.print("[yellow]Restarting AzuraCast backend...[/yellow]")
                         try:
                             azura.restart_backend()
                             total_restarts += 1
@@ -543,7 +549,18 @@ def watch(
                         time.sleep(fail_interval)
 
             except StreamToolsError as e:
+                consecutive_api_errors += 1
                 console.print(f"[red]Error checking stream:[/red] {e}")
+                if consecutive_api_errors >= max_api_errors:
+                    console.print(
+                        f"[red]Max API errors ({max_api_errors}) reached. Giving up.[/red]"
+                    )
+                    send_notification(
+                        "🛑 Stream Monitor Stopped",
+                        f"Max API errors ({max_api_errors}) reached.\nStream ID: `{stream_id}`",
+                        DISCORD_RED,
+                    )
+                    raise typer.Exit(1)
                 time.sleep(fail_interval)
 
     except KeyboardInterrupt:
