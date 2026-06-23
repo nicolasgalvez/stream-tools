@@ -39,6 +39,7 @@ def list_moderators(
 
 
 @app.command()
+@common_options
 def add(
     live_chat_id: str = typer.Argument(..., help="Live chat ID"),
     channel_id: str = typer.Argument(..., help="Channel ID to add as moderator"),
@@ -54,6 +55,7 @@ def add(
 
 
 @app.command()
+@common_options
 def remove(
     moderator_id: str = typer.Argument(..., help="Moderator ID"),
     confirm: bool = typer.Option(False, "--confirm", "-y", help="Skip confirmation"),
