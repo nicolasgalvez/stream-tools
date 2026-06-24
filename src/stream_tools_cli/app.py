@@ -12,7 +12,7 @@ logger.remove()
 
 import typer
 
-from stream_tools_cli.commands import auth, azuracast, bans, broadcasts, channels, chat, moderators, setup, streams
+from stream_tools_cli.commands import auth, azuracast, bans, broadcasts, channels, chat, moderators, setup, streams, videos
 
 app = typer.Typer(
     name="yt",
@@ -29,6 +29,7 @@ app.add_typer(chat.app, name="chat", help="Live chat operations")
 app.add_typer(moderators.app, name="mod", help="Chat moderator management")
 app.add_typer(bans.app, name="ban", help="Chat ban management")
 app.add_typer(azuracast.app, name="azura", help="AzuraCast station control")
+app.add_typer(videos.app, name="video", help="Manage uploaded videos")
 
 # Setup is a top-level command, not a sub-app
 app.command(name="setup")(setup.setup)

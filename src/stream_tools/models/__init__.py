@@ -11,6 +11,7 @@ from stream_tools.models.common import (
     StreamFrameRate,
 )
 from stream_tools.models.stream import LiveStream
+from stream_tools.models.video import Video, VideoLicense
 
 __all__ = [
     "Broadcast",
@@ -24,4 +25,6 @@ __all__ = [
     "PrivacyStatus",
     "StreamResolution",
     "StreamFrameRate",
+    "Video",
+    "VideoLicense",
 ]
