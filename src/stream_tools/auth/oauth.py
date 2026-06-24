@@ -272,7 +272,7 @@ class OAuthManager:
                 # installed google-auth version exposes timeout control on Credentials.refresh().
                 self._credentials.refresh(request)
             except Exception as e:
-                logger.warning("Token refresh failed", exc_info=True)
+                logger.opt(exception=e).warning("Token refresh failed")
                 self._credentials = None
                 raise AuthenticationError(f"Failed to refresh token: {e}") from e
 
@@ -291,15 +291,18 @@ class OAuthManager:
 
         token_path = self.config.token_path
         token_path.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp_path = tempfile.mkstemp(dir=str(token_path.parent), suffix=".tmp")
+        tmp = tempfile.NamedTemporaryFile(
+            dir=str(token_path.parent), suffix=".tmp", delete=False, mode="w"
+        )
         try:
-            with os.fdopen(fd, "w") as file_obj:
-                json.dump(token_data, file_obj, indent=2)
-            os.chmod(tmp_path, 0o600)
-            os.replace(tmp_path, str(token_path))
+            json.dump(token_data, tmp, indent=2)
+            tmp.close()
+            os.chmod(tmp.name, 0o600)
+            os.replace(tmp.name, str(token_path))
         except Exception:
+            tmp.close()
             try:
-                os.unlink(tmp_path)
+                os.unlink(tmp.name)
             except OSError:
                 pass
             raise

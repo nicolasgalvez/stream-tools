@@ -408,8 +408,8 @@ def watch(
                     broadcast_status = b.life_cycle_status.value
                     broadcast_url = f"https://youtube.com/live/{b.id}"
                     break
-    except StreamToolsError:
-        logger.debug("Broadcast lookup failed", exc_info=True)
+    except Exception:
+        logger.opt(exception=True).debug("Broadcast lookup failed")
 
     # Get AzuraCast station info
     station_name = "Unknown"
@@ -423,7 +423,7 @@ def watch(
                 song = np["now_playing"].get("song", {})
                 now_playing = f"{song.get('artist', '?')} - {song.get('title', '?')}"
         except Exception:
-            logger.debug("AzuraCast lookup failed", exc_info=True)
+            logger.opt(exception=True).debug("AzuraCast lookup failed")
 
     console.print(f"[bold]Station:[/bold] {station_name}")
     if broadcast_title:
