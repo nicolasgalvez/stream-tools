@@ -1,6 +1,9 @@
 """Facade client aggregating all YouTube Live API services."""
 
+import httplib2
+
 from google.oauth2.credentials import Credentials
+from google_auth_httplib2 import AuthorizedHttp
 from googleapiclient.discovery import Resource, build
 
 from stream_tools.services.bans import BanService
@@ -47,7 +50,8 @@ class YouTubeLiveClient:
     def youtube(self) -> Resource:
         """Lazily build and cache the YouTube API resource."""
         if self._resource is None:
-            self._resource = build("youtube", "v3", credentials=self._credentials)
+            http = AuthorizedHttp(self._credentials, http=httplib2.Http(timeout=60))
+            self._resource = build("youtube", "v3", http=http)
         return self._resource
 
     @property

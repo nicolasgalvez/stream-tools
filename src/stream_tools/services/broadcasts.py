@@ -321,4 +321,4 @@ class BroadcastService(BaseService):
                 media_body=media,
             ).execute()
         except HttpError as e:
-            self._handle_api_error(e, "Thumbnail")
+            self._handle_api_error(e, "Broadcast")

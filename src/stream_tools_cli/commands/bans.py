@@ -4,6 +4,7 @@ import typer
 from rich.console import Console
 
 from stream_tools.exceptions import StreamToolsError
+from stream_tools_cli.state import common_options
 
 from stream_tools_cli.commands import get_client
 
@@ -12,6 +13,7 @@ console = Console()
 
 
 @app.command()
+@common_options
 def add(
     live_chat_id: str = typer.Argument(..., help="Live chat ID"),
     channel_id: str = typer.Argument(..., help="Channel ID to ban"),
@@ -34,6 +36,7 @@ def add(
 
 
 @app.command()
+@common_options
 def remove(
     ban_id: str = typer.Argument(..., help="Ban ID"),
     confirm: bool = typer.Option(False, "--confirm", "-y", help="Skip confirmation"),

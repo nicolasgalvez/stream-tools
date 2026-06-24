@@ -1,5 +1,6 @@
 """Setup service for GCP project creation and YouTube API enablement."""
 
+import os
 import secrets
 import shutil
 import subprocess
@@ -87,6 +88,7 @@ class SetupService:
         dest = DEFAULT_CLIENT_SECRET_PATH
         DEFAULT_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
         shutil.copy2(json_path, dest)
+        os.chmod(dest, 0o600)
         return dest
 
     def _run_gcloud(self, args: list[str]) -> str:

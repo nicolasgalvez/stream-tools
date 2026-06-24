@@ -40,6 +40,7 @@ def list_messages(
 
 
 @app.command()
+@common_options
 def send(
     live_chat_id: str = typer.Argument(..., help="Live chat ID"),
     message: str = typer.Option(None, "--message", "-m", help="Message text"),
@@ -58,6 +59,7 @@ def send(
 
 
 @app.command()
+@common_options
 def delete(
     message_id: str = typer.Argument(..., help="Message ID to delete"),
     confirm: bool = typer.Option(False, "--confirm", "-y", help="Skip confirmation"),
