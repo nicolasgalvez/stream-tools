@@ -245,13 +245,32 @@ Stream-tools includes an MCP server that exposes all YouTube operations as tools
 
 ### Setup
 
+Install globally with pipx (makes `yt` and `yt-mcp` available on your PATH):
+
+```bash
+pipx install .
+pipx inject stream-tools mcp
+```
+
+Or from a dev environment:
+
 ```bash
 pip install -e ".[mcp]"
 ```
 
 ### Claude Code
 
-Add to your project `.mcp.json` (or `~/.claude/mcp.json` for global):
+Add via the CLI (recommended):
+
+```bash
+# Project-scoped (shared with team via .mcp.json)
+claude mcp add -s project stream-tools -- yt-mcp
+
+# User-scoped (personal, available in all projects)
+claude mcp add -s user stream-tools -- yt-mcp
+```
+
+Or manually add to `.mcp.json`:
 
 ```json
 {
@@ -263,7 +282,7 @@ Add to your project `.mcp.json` (or `~/.claude/mcp.json` for global):
 }
 ```
 
-Or run from source:
+If running from source without a global install, use the full path:
 
 ```json
 {
