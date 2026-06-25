@@ -49,14 +49,14 @@ class VideoService(BaseService):
         if not path.exists():
             raise FileNotFoundError(f"Video file not found: {path}")
 
+        snippet: dict = {"title": title, "description": description, "tags": tags or []}
+        if category_id:
+            snippet["categoryId"] = category_id
+        if default_language:
+            snippet["defaultLanguage"] = default_language
+
         body = {
-            "snippet": {
-                "title": title,
-                "description": description,
-                "tags": tags or [],
-                "categoryId": category_id,
-                "defaultLanguage": default_language,
-            },
+            "snippet": snippet,
             "status": {
                 "privacyStatus": privacy_status,
                 "embeddable": True,
