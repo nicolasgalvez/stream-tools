@@ -1,6 +1,6 @@
 """Broadcast service for YouTube Live broadcasts."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from googleapiclient.errors import HttpError
 
@@ -34,16 +34,21 @@ class BroadcastService(BaseService):
             APIError: If the YouTube API request fails.
         """
         try:
-            response = self.youtube.liveBroadcasts().list(
-                part="snippet,status,contentDetails",
-                id=broadcast_id,
-            ).execute()
+            response = (
+                self.youtube.liveBroadcasts()
+                .list(
+                    part="snippet,status,contentDetails",
+                    id=broadcast_id,
+                )
+                .execute()
+            )
         except HttpError as e:
             self._handle_api_error(e, "Broadcast")
 
         items = response.get("items", [])
         if not items:
             from stream_tools.exceptions import NotFoundError
+
             raise NotFoundError("Broadcast", broadcast_id)
 
         return Broadcast.from_api_response(items[0])
@@ -163,10 +168,14 @@ class BroadcastService(BaseService):
         }
 
         try:
-            response = self.youtube.liveBroadcasts().insert(
-                part="snippet,status,contentDetails",
-                body=body,
-            ).execute()
+            response = (
+                self.youtube.liveBroadcasts()
+                .insert(
+                    part="snippet,status,contentDetails",
+                    body=body,
+                )
+                .execute()
+            )
         except HttpError as e:
             self._handle_api_error(e, "Broadcast")
 
@@ -199,16 +208,21 @@ class BroadcastService(BaseService):
         """
         # Fetch current state first
         try:
-            current = self.youtube.liveBroadcasts().list(
-                part="snippet,status,contentDetails",
-                id=broadcast_id,
-            ).execute()
+            current = (
+                self.youtube.liveBroadcasts()
+                .list(
+                    part="snippet,status,contentDetails",
+                    id=broadcast_id,
+                )
+                .execute()
+            )
         except HttpError as e:
             self._handle_api_error(e, "Broadcast")
 
         items = current.get("items", [])
         if not items:
             from stream_tools.exceptions import NotFoundError
+
             raise NotFoundError("Broadcast", broadcast_id)
 
         item = items[0]
@@ -225,10 +239,14 @@ class BroadcastService(BaseService):
         body = {"id": broadcast_id, "snippet": snippet, "status": status}
 
         try:
-            response = self.youtube.liveBroadcasts().update(
-                part="snippet,status",
-                body=body,
-            ).execute()
+            response = (
+                self.youtube.liveBroadcasts()
+                .update(
+                    part="snippet,status",
+                    body=body,
+                )
+                .execute()
+            )
         except HttpError as e:
             self._handle_api_error(e, "Broadcast")
 
@@ -265,11 +283,15 @@ class BroadcastService(BaseService):
             APIError: If the YouTube API request fails.
         """
         try:
-            response = self.youtube.liveBroadcasts().bind(
-                part="snippet,status,contentDetails",
-                id=broadcast_id,
-                streamId=stream_id,
-            ).execute()
+            response = (
+                self.youtube.liveBroadcasts()
+                .bind(
+                    part="snippet,status,contentDetails",
+                    id=broadcast_id,
+                    streamId=stream_id,
+                )
+                .execute()
+            )
         except HttpError as e:
             self._handle_api_error(e, "Broadcast")
 
@@ -291,11 +313,15 @@ class BroadcastService(BaseService):
             APIError: If the transition is invalid or the API request fails.
         """
         try:
-            response = self.youtube.liveBroadcasts().transition(
-                part="snippet,status,contentDetails",
-                id=broadcast_id,
-                broadcastStatus=status.value,
-            ).execute()
+            response = (
+                self.youtube.liveBroadcasts()
+                .transition(
+                    part="snippet,status,contentDetails",
+                    id=broadcast_id,
+                    broadcastStatus=status.value,
+                )
+                .execute()
+            )
         except HttpError as e:
             self._handle_api_error(e, "Broadcast")
 

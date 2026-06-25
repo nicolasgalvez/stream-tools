@@ -19,3 +19,4 @@ docs/
 *.liq
 template.json
 .DS_Store
+.sisyphus/

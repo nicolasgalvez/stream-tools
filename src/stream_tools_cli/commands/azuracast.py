@@ -36,28 +36,34 @@ def status() -> None:
         # Get service status
         try:
             svc = client.get_service_status()
-            backend_running = svc.get('backend_running', False)
-            frontend_running = svc.get('frontend_running', False)
+            backend_running = svc.get("backend_running", False)
+            frontend_running = svc.get("frontend_running", False)
 
             be_color = "green" if backend_running else "red"
             fe_color = "green" if frontend_running else "red"
-            console.print(f"\n[bold]Backend Running:[/bold] [{be_color}]{backend_running}[/{be_color}]")
-            console.print(f"[bold]Frontend Running:[/bold] [{fe_color}]{frontend_running}[/{fe_color}]")
+            console.print(
+                f"\n[bold]Backend Running:[/bold] [{be_color}]{backend_running}[/{be_color}]"
+            )
+            console.print(
+                f"[bold]Frontend Running:[/bold] [{fe_color}]{frontend_running}[/{fe_color}]"
+            )
         except Exception:
             pass  # Service status endpoint may not be available
 
         # Get now playing
         try:
             np = client.get_nowplaying()
-            if np.get('now_playing'):
-                song = np['now_playing'].get('song', {})
-                console.print(f"\n[bold]Now Playing:[/bold] {song.get('artist', '?')} - {song.get('title', '?')}")
-            listeners = np.get('listeners', {})
+            if np.get("now_playing"):
+                song = np["now_playing"].get("song", {})
+                console.print(
+                    f"\n[bold]Now Playing:[/bold] {song.get('artist', '?')} - {song.get('title', '?')}"
+                )
+            listeners = np.get("listeners", {})
             console.print(f"[bold]Listeners:[/bold] {listeners.get('current', 0)}")
         except Exception:
             pass
 
-        if data.get('public_player_url'):
+        if data.get("public_player_url"):
             console.print(f"\n[bold]Player URL:[/bold] {data['public_player_url']}")
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
@@ -71,7 +77,7 @@ def restart() -> None:
     try:
         console.print("Restarting backend (liquidsoap)...")
         result = client.restart_backend()
-        console.print(f"[green]Backend restarted.[/green]")
+        console.print("[green]Backend restarted.[/green]")
         if result.get("message"):
             console.print(result["message"])
     except Exception as e:
@@ -86,7 +92,7 @@ def stop() -> None:
     try:
         console.print("Stopping backend (liquidsoap)...")
         result = client.stop_backend()
-        console.print(f"[yellow]Backend stopped.[/yellow]")
+        console.print("[yellow]Backend stopped.[/yellow]")
         if result.get("message"):
             console.print(result["message"])
     except Exception as e:
@@ -101,7 +107,7 @@ def start() -> None:
     try:
         console.print("Starting backend (liquidsoap)...")
         result = client.start_backend()
-        console.print(f"[green]Backend started.[/green]")
+        console.print("[green]Backend started.[/green]")
         if result.get("message"):
             console.print(result["message"])
     except Exception as e:

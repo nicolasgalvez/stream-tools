@@ -1,6 +1,6 @@
 """Broadcast model for YouTube Live broadcasts."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 
 from stream_tools.models.common import LifeCycleStatus, PrivacyStatus
