@@ -227,12 +227,65 @@ src/
 │   ├── services/           # One service per YouTube resource
 │   ├── client.py           # YouTubeLiveClient(credentials) facade
 │   └── exceptions.py       # Error hierarchy
-└── stream_tools_cli/       # Thin CLI wrapper
-    ├── app.py              # Typer app + sub-app registration
-    ├── formatting.py       # Rich tables/panels
-    ├── azuracast.py        # AzuraCast API client
-    ├── notifications.py    # Discord webhook notifications
-    └── commands/           # One module per command group
+├── stream_tools_cli/       # Thin CLI wrapper
+│   ├── app.py              # Typer app + sub-app registration
+│   ├── formatting.py       # Rich tables/panels
+│   ├── azuracast.py        # AzuraCast API client
+│   ├── notifications.py    # Discord webhook notifications
+│   └── commands/           # One module per command group
+└── stream_tools_mcp/       # MCP server for Claude Code / Cursor
+    └── server.py           # 26 tools wrapping all library services
 scripts/
 └── export-yt-credentials   # Export OAuth tokens to .env for headless deploy
 ```
+
+## MCP Server (Claude Code / Cursor)
+
+Stream-tools includes an MCP server that exposes all YouTube operations as tools for AI assistants. Both the CLI and MCP call the same `stream_tools` library — no duplication.
+
+### Setup
+
+```bash
+pip install -e ".[mcp]"
+```
+
+### Claude Code
+
+Add to your project `.mcp.json` (or `~/.claude/mcp.json` for global):
+
+```json
+{
+  "mcpServers": {
+    "stream-tools": {
+      "command": "yt-mcp"
+    }
+  }
+}
+```
+
+Or run from source:
+
+```json
+{
+  "mcpServers": {
+    "stream-tools": {
+      "command": "python",
+      "args": ["-m", "stream_tools_mcp.server"]
+    }
+  }
+}
+```
+
+### Available Tools (26)
+
+| Category | Tools |
+|---|---|
+| Videos (6) | `video_upload`, `video_list`, `video_get`, `video_update`, `video_delete`, `video_categories` |
+| Broadcasts (7) | `broadcast_list`, `broadcast_get`, `broadcast_create`, `broadcast_update`, `broadcast_delete`, `broadcast_bind`, `broadcast_transition` |
+| Streams (5) | `stream_list`, `stream_get`, `stream_create`, `stream_update`, `stream_delete` |
+| Chat (3) | `chat_list`, `chat_send`, `chat_delete_message` |
+| Moderators (3) | `moderator_list`, `moderator_add`, `moderator_remove` |
+| Bans (2) | `ban_add`, `ban_remove` |
+| Channel (1) | `channel_info` |
+
+Auth uses the same OAuth chain as the CLI (env vars → cached token → browser). Run `yt auth login` first to authenticate.
