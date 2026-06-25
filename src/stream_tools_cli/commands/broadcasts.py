@@ -40,7 +40,9 @@ BROADCAST_COLUMNS = {
     "Status": lambda b: b.life_cycle_status.value,
     "Privacy": lambda b: b.privacy.value,
     "Started": lambda b: b.actual_start.strftime("%Y-%m-%d %H:%M") if b.actual_start else "-",
-    "Duration": lambda b: _format_duration(b.actual_start) if b.life_cycle_status.value == "live" else "-",
+    "Duration": lambda b: _format_duration(b.actual_start)
+    if b.life_cycle_status.value == "live"
+    else "-",
     "Chat ID": lambda b: b.live_chat_id or "-",
     "Stream ID": lambda b: b.bound_stream_id or "-",
 }
@@ -119,7 +121,9 @@ def _load_broadcast_json(path: Path) -> dict:
 @app.command("list")
 @common_options
 def list_broadcasts(
-    status: str = typer.Option("all", "--status", "-s", help="Filter: all, active, completed, upcoming"),
+    status: str = typer.Option(
+        "all", "--status", "-s", help="Filter: all, active, completed, upcoming"
+    ),
     limit: int = typer.Option(25, "--limit", "-l", help="Max results"),
 ) -> None:
     """List broadcasts."""
@@ -203,7 +207,9 @@ def status(
             "ready": "cyan",
             "testing": "cyan",
         }.get(b.life_cycle_status.value, "white")
-        console.print(f"[bold]Status:[/bold] [{status_color}]{b.life_cycle_status.value}[/{status_color}]")
+        console.print(
+            f"[bold]Status:[/bold] [{status_color}]{b.life_cycle_status.value}[/{status_color}]"
+        )
         console.print(f"[bold]Privacy:[/bold] {b.privacy.value}")
         if b.recording_status:
             console.print(f"[bold]Recording:[/bold] {b.recording_status}")
@@ -213,7 +219,9 @@ def status(
         # Timing section
         console.print("[bold underline]Timing[/bold underline]")
         if b.scheduled_start:
-            console.print(f"  Scheduled Start: {b.scheduled_start.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+            console.print(
+                f"  Scheduled Start: {b.scheduled_start.strftime('%Y-%m-%d %H:%M:%S %Z')}"
+            )
         if b.actual_start:
             console.print(f"  Actual Start:    {b.actual_start.strftime('%Y-%m-%d %H:%M:%S %Z')}")
         if b.actual_end:
@@ -243,7 +251,9 @@ def status(
         # If auto_stop is enabled, add a note about why it might have ended
         if b.life_cycle_status.value == "complete" and b.enable_auto_stop:
             console.print()
-            console.print("[yellow]Note:[/yellow] Auto-stop was enabled. Broadcast ended when stream disconnected.")
+            console.print(
+                "[yellow]Note:[/yellow] Auto-stop was enabled. Broadcast ended when stream disconnected."
+            )
 
     except StreamToolsError as e:
         console.print(f"[red]Error:[/red] {e}")
@@ -254,20 +264,34 @@ def status(
 @common_options
 def create(
     title: str = typer.Option(None, "--title", "-t", help="Broadcast title"),
-    start: str = typer.Option(None, "--start", help="Scheduled start (ISO 8601). Omit to start now."),
+    start: str = typer.Option(
+        None, "--start", help="Scheduled start (ISO 8601). Omit to start now."
+    ),
     privacy: str = typer.Option(None, "--privacy", "-p", help="Privacy: public, unlisted, private"),
     description: str = typer.Option(None, "--description", "-d", help="Description"),
-    auto_start: bool = typer.Option(True, "--auto-start/--no-auto-start", help="Start when stream goes live"),
-    auto_stop: bool = typer.Option(True, "--auto-stop/--no-auto-stop", help="End when stream disconnects"),
+    auto_start: bool = typer.Option(
+        True, "--auto-start/--no-auto-start", help="Start when stream goes live"
+    ),
+    auto_stop: bool = typer.Option(
+        True, "--auto-stop/--no-auto-stop", help="End when stream disconnects"
+    ),
     dvr: bool = typer.Option(False, "--dvr/--no-dvr", help="Allow viewers to rewind"),
     embed: bool = typer.Option(True, "--embed/--no-embed", help="Allow embedding"),
-    low_latency: bool = typer.Option(False, "--low-latency/--no-low-latency", help="Enable low latency"),
+    low_latency: bool = typer.Option(
+        False, "--low-latency/--no-low-latency", help="Enable low latency"
+    ),
     latency: str = typer.Option("normal", "--latency", help="Latency: normal, low, ultraLow"),
-    made_for_kids: bool = typer.Option(False, "--made-for-kids/--not-for-kids", help="Made for kids"),
+    made_for_kids: bool = typer.Option(
+        False, "--made-for-kids/--not-for-kids", help="Made for kids"
+    ),
     stream: str = typer.Option(None, "--stream", "-s", help="Stream ID to bind"),
     from_json: Path = typer.Option(None, "--from-json", "-j", help="Load settings from JSON file"),
-    thumbnail: Path = typer.Option(None, "--thumbnail", help="Thumbnail image/URL to upload after creation"),
-    restart_stream: bool = typer.Option(False, "--restart-stream", "-r", help="Restart AzuraCast after creating"),
+    thumbnail: Path = typer.Option(
+        None, "--thumbnail", help="Thumbnail image/URL to upload after creation"
+    ),
+    restart_stream: bool = typer.Option(
+        False, "--restart-stream", "-r", help="Restart AzuraCast after creating"
+    ),
 ) -> None:
     """Create a new broadcast.
 
@@ -290,23 +314,57 @@ def create(
 
     # String options
     final_title = title or json_data.get("title") or typer.prompt("Broadcast title")
-    final_description = description if description is not None else (json_data.get("description") or "")
-    final_privacy = privacy or json_data.get("privacy") or typer.prompt("Privacy (public/unlisted/private)", default="private")
+    final_description = (
+        description if description is not None else (json_data.get("description") or "")
+    )
+    final_privacy = (
+        privacy
+        or json_data.get("privacy")
+        or typer.prompt("Privacy (public/unlisted/private)", default="private")
+    )
 
     # Boolean options: use JSON value only if CLI is at default
-    final_auto_start = json_data.get("enable_auto_start") if (json_data.get("enable_auto_start") is not None and auto_start is True) else auto_start
-    final_auto_stop = json_data.get("enable_auto_stop") if (json_data.get("enable_auto_stop") is not None and auto_stop is True) else auto_stop
-    final_dvr = json_data.get("enable_dvr") if (json_data.get("enable_dvr") is not None and dvr is False) else dvr
-    final_embed = json_data.get("enable_embed") if (json_data.get("enable_embed") is not None and embed is True) else embed
-    final_low_latency = json_data.get("enable_low_latency") if (json_data.get("enable_low_latency") is not None and low_latency is False) else low_latency
-    final_made_for_kids = json_data.get("made_for_kids") if (json_data.get("made_for_kids") is not None and made_for_kids is False) else made_for_kids
+    final_auto_start = (
+        json_data.get("enable_auto_start")
+        if (json_data.get("enable_auto_start") is not None and auto_start is True)
+        else auto_start
+    )
+    final_auto_stop = (
+        json_data.get("enable_auto_stop")
+        if (json_data.get("enable_auto_stop") is not None and auto_stop is True)
+        else auto_stop
+    )
+    final_dvr = (
+        json_data.get("enable_dvr")
+        if (json_data.get("enable_dvr") is not None and dvr is False)
+        else dvr
+    )
+    final_embed = (
+        json_data.get("enable_embed")
+        if (json_data.get("enable_embed") is not None and embed is True)
+        else embed
+    )
+    final_low_latency = (
+        json_data.get("enable_low_latency")
+        if (json_data.get("enable_low_latency") is not None and low_latency is False)
+        else low_latency
+    )
+    final_made_for_kids = (
+        json_data.get("made_for_kids")
+        if (json_data.get("made_for_kids") is not None and made_for_kids is False)
+        else made_for_kids
+    )
 
     # String options with defaults
     final_latency = json_data.get("latency_preference") or latency
     final_projection = json_data.get("projection") or "rectangular"
     final_closed_captions = json_data.get("enable_closed_captions") or False
     final_captions_type = json_data.get("closed_captions_type") or "closedCaptionsDisabled"
-    final_record_from_start = json_data.get("record_from_start") if json_data.get("record_from_start") is not None else True
+    final_record_from_start = (
+        json_data.get("record_from_start")
+        if json_data.get("record_from_start") is not None
+        else True
+    )
 
     # Parse start time: CLI > JSON > None (immediate)
     # None = immediate broadcast (service uses past time to make it "ready" not "scheduled")
@@ -322,7 +380,9 @@ def create(
     elif json_start is not None:
         scheduled = datetime.fromisoformat(json_start.replace("Z", "+00:00"))
         if scheduled < datetime.now(timezone.utc):
-            console.print(f"[yellow]Note:[/yellow] scheduled_start from JSON is in the past, creating immediate broadcast")
+            console.print(
+                "[yellow]Note:[/yellow] scheduled_start from JSON is in the past, creating immediate broadcast"
+            )
             scheduled = None  # Immediate broadcast
 
     try:
@@ -374,7 +434,9 @@ def create(
                 except Exception as e:
                     console.print(f"[yellow]Warning:[/yellow] Failed to restart AzuraCast: {e}")
             else:
-                console.print("[yellow]Warning:[/yellow] AzuraCast not configured (set AZURACAST_* env vars)")
+                console.print(
+                    "[yellow]Warning:[/yellow] AzuraCast not configured (set AZURACAST_* env vars)"
+                )
 
     except StreamToolsError as e:
         console.print(f"[red]Error:[/red] {e}")
