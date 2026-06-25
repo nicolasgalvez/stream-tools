@@ -25,7 +25,7 @@ dev = [
     "pdoc>=14.0",
     "pytest>=7.0",
     "pytest-cov>=4.0",
-    "ruff>=0.1.0",
+    "ruff>=0.15.20",
 ]
 mcp = [
     "mcp>=1.12.0",
