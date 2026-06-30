@@ -201,6 +201,29 @@ auth.auto_authenticate()
 client = YouTubeLiveClient(auth.credentials)
 ```
 
+## Batch Uploads
+
+`scripts/upload-batch` uploads a queue of videos to YouTube on a schedule, driven by a metadata JSON. It is built for unattended (cron) use: it uploads the next N pending entries, writes each `videoId` back to the JSON after every upload (crash-safe), recovers from a known intermittent upload error without creating duplicates, and stops cleanly when the daily quota is hit.
+
+```bash
+# next 4 pending, files read from a local folder
+VGM_VIDEO_DIR=/path/to/videos ./scripts/upload-batch
+
+# preview only — no uploads, no writes
+VGM_VIDEO_DIR=/path/to/videos ./scripts/upload-batch --dry-run
+
+# pull each file over SSH instead of a local folder; upload 6 this run
+VGM_SRC_HOST=user@host VGM_SRC_DIR=videos/normalized ./scripts/upload-batch 6
+```
+
+The metadata file (default `<script dir>/youtube-metadata.json`) is a JSON array; each entry carries `title`, `description`, `tags`, `file`, and an `upload` block with `status` (`pending`/`uploaded`) and `publishAt` (RFC3339). See the header of `scripts/upload-batch` for the full schema and every env var.
+
+Run it with a python that has `stream_tools` installed (e.g. the project venv) and credentials available headlessly (`YT_*` env vars or `~/.config/stream-tools/token.json` — see [Headless/Remote Deployment](#headlessremote-deployment)). Example nightly cron at 7 PM:
+
+```cron
+0 19 * * * VGM_VIDEO_DIR=/srv/videos /srv/stream-tools/scripts/upload-batch >> /srv/upload.log 2>&1
+```
+
 ## Development
 
 ```bash
@@ -234,5 +257,6 @@ src/
     ├── notifications.py    # Discord webhook notifications
     └── commands/           # One module per command group
 scripts/
-└── export-yt-credentials   # Export OAuth tokens to .env for headless deploy
+├── export-yt-credentials   # Export OAuth tokens to .env for headless deploy
+└── upload-batch            # Scheduled batch uploader (metadata-driven, cron-safe)
 ```
