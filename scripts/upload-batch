@@ -1,0 +1,312 @@
+#!/usr/bin/env python3
+"""
+upload-batch — upload the next N pending videos to YouTube, each scheduled at the
+publishAt stored alongside it in a metadata JSON. Safe to run unattended (cron).
+
+It is driven entirely by a metadata file: a JSON array of entries, each shaped like
+
+    {
+      "rank": 7,
+      "file": "07 - … .mp4",
+      "title": "…",
+      "description": "…",
+      "tags": ["VGM", "…"],          # leading '#' is stripped automatically
+      "upload": {
+        "status": "pending",          # "pending" | "uploaded"
+        "publishAt": "2026-07-02T19:00:00Z",
+        "videoId": null,
+        "url": null
+      }
+    }
+
+The script picks the lowest-rank entries whose upload.status != "uploaded", uploads
+each, and rewrites the JSON after every upload (crash-safe progress).
+
+Usage:
+    ./upload-batch [N] [--dry-run]
+
+    N           how many to upload this run (default 4, or $VGM_BATCH)
+    --dry-run   show what would happen; no uploads, no writes
+
+Configuration (env):
+    VGM_METADATA    path to the metadata JSON     (default: <script dir>/youtube-metadata.json)
+    VGM_BATCH       default batch size            (default: 4)
+    VGM_CATEGORY_ID YouTube category id           (default: 10 = Music)
+
+    File source — pick ONE:
+      VGM_VIDEO_DIR   local folder of the .mp4s  -> files are read directly
+      VGM_SRC_HOST + VGM_SRC_DIR                  -> each file is pulled over SSH
+                      (e.g. VGM_SRC_HOST=user@host  VGM_SRC_DIR=path/relative/to/home)
+                      into ./.staging and deleted after upload.
+
+Auth: uses stream_tools.auth.OAuthManager (env vars -> cached token file ->
+interactive). For headless/cron use, populate YT_* env vars or
+~/.config/stream-tools/token.json so no browser is needed. The `stream_tools`
+package and its deps must be importable by the python running this script
+(install the package into the active venv: `pip install .`).
+
+Notes / safety:
+  * Uploads directly via the YouTube Data API resumable upload.
+  * Some environments intermittently raise "Redirected but the response is missing a
+    Location: header" AFTER the upload has committed. On that error we DO NOT retry
+    the insert (that creates duplicates) — we recover the new video's id by title.
+  * At startup we list existing channel titles; a pending entry whose title already
+    exists (prior crashed run) is recorded, not re-uploaded.
+  * Stops the batch immediately on quotaExceeded (default quota: ~6 uploads/day).
+"""
+
+import json
+import logging
+import os
+import subprocess
+import sys
+import time
+from datetime import datetime, timezone
+
+from stream_tools.auth.oauth import OAuthManager
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+from googleapiclient.http import MediaFileUpload
+
+SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+METADATA_PATH = os.environ.get("VGM_METADATA") or os.path.join(SCRIPT_DIR, "youtube-metadata.json")
+LOG_PATH = os.environ.get("VGM_LOG") or os.path.join(SCRIPT_DIR, "upload-batch.log")
+STAGING_DIR = os.path.join(SCRIPT_DIR, ".staging")
+CATEGORY_ID = os.environ.get("VGM_CATEGORY_ID", "10")  # 10 = Music
+
+# File source: local dir if VGM_VIDEO_DIR is set & exists, else SSH pull.
+LOCAL_DIR = os.environ.get("VGM_VIDEO_DIR")
+SRC_HOST = os.environ.get("VGM_SRC_HOST")  # e.g. user@host
+SRC_DIR = os.environ.get("VGM_SRC_DIR")    # remote dir, relative to home or absolute
+SSH_OPTS = ["-o", "BatchMode=yes", "-o", "ConnectTimeout=15"]
+
+log = logging.getLogger("upload-batch")
+
+
+def setup_logging():
+    log.setLevel(logging.INFO)
+    fmt = logging.Formatter("%(asctime)s  %(levelname)-7s  %(message)s")
+    for h in (logging.FileHandler(LOG_PATH), logging.StreamHandler(sys.stdout)):
+        h.setFormatter(fmt)
+        log.addHandler(h)
+
+
+def parse_args(argv):
+    dry_run = "--dry-run" in argv
+    nums = [a for a in argv[1:] if a.isdigit()]
+    n = int(nums[0]) if nums else int(os.environ.get("VGM_BATCH", "4"))
+    return n, dry_run
+
+
+def load_meta():
+    with open(METADATA_PATH, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_meta(meta):
+    tmp = METADATA_PATH + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(meta, f, indent=2, ensure_ascii=False)
+    os.replace(tmp, METADATA_PATH)  # atomic
+
+
+def is_past(iso):
+    if not iso:
+        return False
+    return datetime.fromisoformat(iso.replace("Z", "+00:00")) <= datetime.now(timezone.utc)
+
+
+def pending_entries(meta):
+    """Entries not yet uploaded, lowest rank first."""
+    return sorted((m for m in meta if m["upload"].get("status") != "uploaded"), key=lambda m: m["rank"])
+
+
+# ── file source ──────────────────────────────────────────────────────────────
+
+def local_mode():
+    return bool(LOCAL_DIR) and os.path.isdir(LOCAL_DIR)
+
+
+def check_source():
+    """Return (ok, human_description)."""
+    if local_mode():
+        return True, f"local dir {LOCAL_DIR}"
+    if not (SRC_HOST and SRC_DIR):
+        return False, "no source configured — set VGM_VIDEO_DIR, or VGM_SRC_HOST + VGM_SRC_DIR"
+    r = subprocess.run(["ssh", *SSH_OPTS, SRC_HOST, "true"], capture_output=True, text=True)
+    if r.returncode != 0:
+        return False, f"ssh {SRC_HOST} failed: {r.stderr.strip()[:160]}"
+    return True, f"ssh {SRC_HOST}:{SRC_DIR}"
+
+
+def remote_listing():
+    r = subprocess.run(["ssh", *SSH_OPTS, SRC_HOST, "ls", "-1", "--", SRC_DIR],
+                       capture_output=True, text=True)
+    return set(r.stdout.splitlines()) if r.returncode == 0 else set()
+
+
+def stage_file(filename):
+    """Make the file available locally; return its path or None on failure."""
+    if local_mode():
+        p = os.path.join(LOCAL_DIR, filename)
+        return p if os.path.exists(p) else None
+    os.makedirs(STAGING_DIR, exist_ok=True)
+    local = os.path.join(STAGING_DIR, filename)
+    remote = f"{SRC_HOST}:{SRC_DIR}/{filename}"  # raw path: modern scp uses SFTP, no shell-quoting
+    r = subprocess.run(["scp", *SSH_OPTS, remote, local], capture_output=True, text=True)
+    if r.returncode != 0:
+        log.error("    scp failed: %s", r.stderr.strip()[:200])
+        return None
+    return local
+
+
+def unstage(path):
+    if not local_mode() and path and path.startswith(STAGING_DIR) and os.path.exists(path):
+        os.remove(path)
+
+
+# ── youtube ──────────────────────────────────────────────────────────────────
+
+def make_client():
+    auth = OAuthManager()
+    auth.auto_authenticate()
+    return build("youtube", "v3", credentials=auth.credentials)
+
+
+def fetch_my_videos(youtube, max_results=50):
+    res = (youtube.search()
+           .list(part="snippet", forMine=True, type="video", order="date", maxResults=max_results)
+           .execute())
+    return [(it["snippet"]["title"], it["id"]["videoId"]) for it in res.get("items", [])]
+
+
+def recover_id_by_title(youtube, title, attempts=6, delay=3):
+    for i in range(attempts):
+        for t, vid in fetch_my_videos(youtube):
+            if t == title:
+                return vid
+        log.info("    recovery %d/%d: not indexed yet, waiting %ds", i + 1, attempts, delay)
+        time.sleep(delay)
+    return None
+
+
+def is_quota_error(e):
+    return (isinstance(e, HttpError) and e.resp is not None
+            and e.resp.status == 403 and b"quota" in (e.content or b"").lower())
+
+
+def upload_one(youtube, entry, path):
+    schedule = entry["upload"].get("publishAt")
+    status = {"privacyStatus": "private", "selfDeclaredMadeForKids": False, "license": "youtube"}
+    if schedule and not is_past(schedule):
+        status["publishAt"] = schedule
+    elif schedule and is_past(schedule):
+        log.warning("    publishAt %s is in the past — uploading PRIVATE with no schedule", schedule)
+
+    body = {
+        "snippet": {
+            "title": entry["title"],
+            "description": entry.get("description", ""),
+            "tags": [t.lstrip("#") for t in entry.get("tags", [])],
+            "categoryId": CATEGORY_ID,
+        },
+        "status": status,
+    }
+    media = MediaFileUpload(path, chunksize=10 * 1024 * 1024, resumable=True)
+    request = youtube.videos().insert(part="snippet,status", body=body, media_body=media)
+    response = None
+    while response is None:
+        _, response = request.next_chunk(num_retries=3)
+    return response["id"]
+
+
+def record(meta, entry, video_id):
+    entry["upload"]["status"] = "uploaded"
+    entry["upload"]["videoId"] = video_id
+    entry["upload"]["url"] = f"https://youtu.be/{video_id}"
+    save_meta(meta)
+
+
+# ── main ─────────────────────────────────────────────────────────────────────
+
+def main():
+    n, dry_run = parse_args(sys.argv)
+    setup_logging()
+
+    meta = load_meta()
+    pending = pending_entries(meta)
+    todo = pending[:n]
+
+    log.info("=" * 70)
+    log.info("upload-batch: %d uploaded, %d pending; up to %d this run%s",
+             len(meta) - len(pending), len(pending), n, "  [DRY RUN]" if dry_run else "")
+
+    ok, where = check_source()
+    log.info("source: %s", where)
+    if not ok:
+        log.error("source unavailable — aborting.")
+        sys.exit(2)
+
+    if not todo:
+        log.info("nothing pending — all done.")
+        return
+
+    if dry_run:
+        present = None if local_mode() else remote_listing()
+        for e in todo:
+            ok_file = (os.path.exists(os.path.join(LOCAL_DIR, e["file"])) if local_mode()
+                       else e["file"] in present)
+            log.info("  would upload #%-2d %-50s -> %s  [file %s]",
+                     e["rank"], e["title"][:50], e["upload"].get("publishAt"),
+                     "OK" if ok_file else "MISSING")
+        log.info("dry run complete — no uploads.")
+        return
+
+    youtube = make_client()
+    try:
+        existing = dict(fetch_my_videos(youtube))
+    except HttpError as e:
+        log.error("could not list channel videos: %s", e)
+        sys.exit(1)
+
+    done = 0
+    for e in todo:
+        rank, title = e["rank"], e["title"]
+
+        if title in existing:
+            log.info("#%-2d already on channel -> %s; recording without re-upload", rank, existing[title])
+            record(meta, e, existing[title])
+            done += 1
+            continue
+
+        path = stage_file(e["file"])
+        if not path:
+            log.error("#%-2d SKIP: could not obtain file %s", rank, e["file"])
+            continue
+
+        try:
+            log.info("#%-2d uploading %-46s -> %s", rank, title[:46], e["upload"].get("publishAt"))
+            try:
+                vid = upload_one(youtube, e, path)
+                log.info("    OK %s", vid)
+            except Exception as exc:
+                if is_quota_error(exc):
+                    log.error("    quotaExceeded — stopping batch. %d done this run.", done)
+                    break
+                log.warning("    upload raised (%s); recovering id instead of retrying", exc)
+                vid = recover_id_by_title(youtube, title)
+                if not vid:
+                    log.error("    could not recover id for #%d; leaving PENDING for next run", rank)
+                    continue
+                log.info("    recovered %s", vid)
+            record(meta, e, vid)
+            done += 1
+        finally:
+            unstage(path)
+
+    remaining = sum(1 for m in meta if m["upload"].get("status") != "uploaded")
+    log.info("done: uploaded %d this run; %d still pending.", done, remaining)
+
+
+if __name__ == "__main__":
+    main()
