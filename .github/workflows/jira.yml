@@ -11,7 +11,7 @@ jobs:
       - uses: procyon-creative/jira-action-man@v2
         id: jira
         with:
-          projects: "STRM"
+          projects: "STRM,VGM"
           from: "branch,title,commits,body"
           post_to_jira: true
           jira_comment_mode: update
@@ -27,7 +27,7 @@ jobs:
       - uses: procyon-creative/jira-action-man@v2
         id: jira
         with:
-          projects: "STRM"
+          projects: "STRM,VGM"
           from: "branch,title,commits,body"
           post_to_jira: false
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -81,7 +81,7 @@ jobs:
       - uses: procyon-creative/jira-action-man@v2
         id: jira
         with:
-          projects: "STRM"
+          projects: "STRM,VGM"
           from: "branch,title,commits,body"
           post_to_jira: false
           github_token: ${{ secrets.GITHUB_TOKEN }}
