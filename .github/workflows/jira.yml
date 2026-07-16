@@ -6,7 +6,7 @@ on:
 
 jobs:
   jira-sync:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     steps:
       - uses: procyon-creative/jira-action-man@v2
         id: jira
@@ -22,7 +22,7 @@ jobs:
 
   jira-transition-qa:
     if: github.event.action == 'opened' || github.event.action == 'reopened'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     steps:
       - uses: procyon-creative/jira-action-man@v2
         id: jira
@@ -76,7 +76,7 @@ jobs:
 
   jira-transition-done:
     if: github.event.pull_request.merged == true
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     steps:
       - uses: procyon-creative/jira-action-man@v2
         id: jira
