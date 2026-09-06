@@ -12,6 +12,7 @@ from stream_tools.services.channels import ChannelService
 from stream_tools.services.chat import ChatService
 from stream_tools.services.moderators import ModeratorService
 from stream_tools.services.streams import StreamService
+from stream_tools.services.playlists import PlaylistService
 from stream_tools.services.videos import VideoService
 
 
@@ -47,6 +48,7 @@ class YouTubeLiveClient:
         self._moderators: ModeratorService | None = None
         self._bans: BanService | None = None
         self._videos: VideoService | None = None
+        self._playlists: PlaylistService | None = None
 
     @property
     def youtube(self) -> Resource:
@@ -104,3 +106,10 @@ class YouTubeLiveClient:
         if self._videos is None:
             self._videos = VideoService(self.youtube)
         return self._videos
+
+    @property
+    def playlists(self) -> PlaylistService:
+        """Access playlist listing and membership operations."""
+        if self._playlists is None:
+            self._playlists = PlaylistService(self.youtube)
+        return self._playlists

@@ -10,7 +10,10 @@ permissions:
 
 jobs:
   release-please:
-    runs-on: [self-hosted, linux]
+    # GitHub-hosted: this repo is PUBLIC, so a self-hosted runner would let
+    # anyone opening a pull request run code on the homelab host. Hosted
+    # runners are also free for public repos, so there is nothing to save.
+    runs-on: ubuntu-latest
     steps:
       - uses: googleapis/release-please-action@v5
         id: release
