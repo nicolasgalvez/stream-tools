@@ -10,6 +10,7 @@ jobs:
     # anyone opening a pull request run code on the homelab host. Hosted
     # runners are also free for public repos, so there is nothing to save.
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: procyon-creative/jira-action-man@v2
         id: jira
@@ -29,6 +30,7 @@ jobs:
     # anyone opening a pull request run code on the homelab host. Hosted
     # runners are also free for public repos, so there is nothing to save.
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: procyon-creative/jira-action-man@v2
         id: jira
@@ -86,6 +88,7 @@ jobs:
     # anyone opening a pull request run code on the homelab host. Hosted
     # runners are also free for public repos, so there is nothing to save.
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: procyon-creative/jira-action-man@v2
         id: jira
