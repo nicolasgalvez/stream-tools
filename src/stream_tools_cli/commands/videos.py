@@ -121,7 +121,11 @@ def upload(
         # instead of re-uploading and creating a duplicate.
         console.print(f"[yellow]Upload committed:[/yellow] {e}")
         if e.video_id:
-            console.print(f"video_id: {e.video_id}")
+            # A contract line for callers, not display text. Rich highlights
+            # anything numeric, and a video id can be all digits or start with
+            # a hyphen — a caller would then parse the escape codes as part of
+            # the id and store it corrupted.
+            console.print(f"video_id: {e.video_id}", highlight=False, markup=False)
         raise typer.Exit(EXIT_UPLOAD_COMMITTED)
     except QuotaExceededError as e:
         console.print(f"[red]Quota exceeded:[/red] {e}")

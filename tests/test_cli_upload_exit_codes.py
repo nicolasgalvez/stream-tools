@@ -93,3 +93,22 @@ class TestExitCodes:
         codes = {EXIT_OK, EXIT_ERROR, EXIT_UPLOAD_COMMITTED, EXIT_QUOTA_EXCEEDED}
 
         assert len(codes) == 4
+
+
+class TestMachineReadableOutput:
+    """The video_id line is a contract with callers, not display text."""
+
+    @pytest.mark.parametrize(
+        "video_id", ["abc123XYZ_-", "12345678901", "-1234567890", "0x12345678"]
+    )
+    def test_the_video_id_line_carries_no_escape_codes(self, video_file, video_id):
+        # Rich highlights anything that looks numeric. A caller parsing the id
+        # would capture the escape codes with it and store a corrupted id.
+        result = invoke_upload(
+            video_file,
+            side_effect=UploadCommittedError(title="Loom (1990)", video_id=video_id),
+        )
+
+        line = next(l for l in result.output.splitlines() if l.startswith("video_id:"))
+        assert "\x1b" not in line
+        assert line == f"video_id: {video_id}"
