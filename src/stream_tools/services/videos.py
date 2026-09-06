@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
 
+from stream_tools.exceptions import QuotaExceededError, UploadCommittedError
 from stream_tools.models.common import PageResult
 from stream_tools.models.video import Video
 from stream_tools.services.base import BaseService
@@ -80,7 +82,41 @@ class VideoService(BaseService):
                 status, response = request.next_chunk()
             return Video.from_api_response(response)
         except HttpError as e:
+            if _is_redirect_missing_location(e):
+                raise self._committed_without_confirmation(title) from e
+            if _is_quota_exceeded(e):
+                raise QuotaExceededError() from e
             self._handle_api_error(e, "Video")
+        except Exception as e:
+            if _is_redirect_missing_location(e):
+                raise self._committed_without_confirmation(title) from e
+            raise
+
+    def _committed_without_confirmation(self, title: str) -> UploadCommittedError:
+        """Build the committed-upload error, recovering the video id if we can.
+
+        Recovery is best-effort: failing to find the id must never hide the fact
+        that the upload committed, because that fact is what stops a caller
+        retrying and creating a duplicate.
+        """
+        return UploadCommittedError(title=title, video_id=self._find_video_id_by_title(title))
+
+    def _find_video_id_by_title(self, title: str) -> str | None:
+        """Find a video on this channel by exact title.
+
+        Newly uploaded videos can take a moment to appear, so a miss here means
+        "not found yet", not "not uploaded".
+        """
+        try:
+            response = (
+                self.youtube.videos().list(part="snippet", mine=True, maxResults=50).execute()
+            )
+            for item in response.get("items", []):
+                if item.get("snippet", {}).get("title") == title:
+                    return item.get("id")
+        except Exception:
+            return None
+        return None
 
     def list(
         self,
@@ -188,11 +224,7 @@ class VideoService(BaseService):
             if publish_at is not None:
                 body["status"]["publishAt"] = publish_at
 
-            response = (
-                self.youtube.videos()
-                .update(part="snippet,status", body=body)
-                .execute()
-            )
+            response = self.youtube.videos().update(part="snippet,status", body=body).execute()
             return Video.from_api_response(response)
         except HttpError as e:
             self._handle_api_error(e, "Video")
@@ -233,3 +265,29 @@ class VideoService(BaseService):
             ]
         except HttpError as e:
             self._handle_api_error(e, "VideoCategory")
+
+
+_REDIRECT_SIGNATURE = "redirected but the response is missing a location"
+
+
+def _is_redirect_missing_location(error: Exception) -> bool:
+    """Detect the post-commit redirect failure by its message.
+
+    Matched on text because the client raises it from several types depending on
+    the transport in use.
+    """
+    return _REDIRECT_SIGNATURE in str(error).lower()
+
+
+def _is_quota_exceeded(error: HttpError) -> bool:
+    """Detect a quotaExceeded reason in an API error payload."""
+    content = getattr(error, "content", b"") or b""
+    try:
+        text = content.decode() if isinstance(content, bytes) else str(content)
+        data = json.loads(text)
+        for item in data.get("error", {}).get("errors", []):
+            if item.get("reason") == "quotaExceeded":
+                return True
+    except (ValueError, AttributeError):
+        pass
+    return "quotaExceeded" in str(error)
