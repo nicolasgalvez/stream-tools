@@ -6,7 +6,16 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from stream_tools.exceptions import StreamToolsError
+from stream_tools.exceptions import (
+    QuotaExceededError,
+    StreamToolsError,
+    UploadCommittedError,
+)
+from stream_tools_cli.exit_codes import (
+    EXIT_ERROR,
+    EXIT_QUOTA_EXCEEDED,
+    EXIT_UPLOAD_COMMITTED,
+)
 from stream_tools_cli.formatting import output
 from stream_tools_cli.state import common_options
 
@@ -65,7 +74,9 @@ def upload(
     tags: str = typer.Option(None, "--tags", help="Comma-separated tags"),
     category: str = typer.Option(None, "--category", "-c", help="Category ID (e.g. 22=People)"),
     privacy: str = typer.Option("private", "--privacy", "-p", help="private|public|unlisted"),
-    publish_at: str = typer.Option(None, "--publish-at", help="ISO 8601 schedule (requires private)"),
+    publish_at: str = typer.Option(
+        None, "--publish-at", help="ISO 8601 schedule (requires private)"
+    ),
     license: str = typer.Option("youtube", "--license", help="youtube|creativeCommon"),
     made_for_kids: bool = typer.Option(False, "--made-for-kids", help="Mark as made for kids"),
     from_json: Path = typer.Option(None, "--from-json", "-j", help="Load settings from JSON file"),
@@ -105,9 +116,19 @@ def upload(
         )
         console.print(f"[green]Video uploaded:[/green] https://youtube.com/watch?v={video.id}")
         output([video], VIDEO_COLUMNS, title="Video")
+    except UploadCommittedError as e:
+        # The video IS on the channel. Exit 2 so a batch caller reconciles
+        # instead of re-uploading and creating a duplicate.
+        console.print(f"[yellow]Upload committed:[/yellow] {e}")
+        if e.video_id:
+            console.print(f"video_id: {e.video_id}")
+        raise typer.Exit(EXIT_UPLOAD_COMMITTED)
+    except QuotaExceededError as e:
+        console.print(f"[red]Quota exceeded:[/red] {e}")
+        raise typer.Exit(EXIT_QUOTA_EXCEEDED)
     except StreamToolsError as e:
         console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(EXIT_ERROR)
 
 
 @app.command("list")
@@ -199,7 +220,9 @@ def delete(
 @app.command()
 @common_options
 def categories(
-    region: str = typer.Option("US", "--region", "-r", help="ISO 3166-1 country code (US, GB, JP, ...)"),
+    region: str = typer.Option(
+        "US", "--region", "-r", help="ISO 3166-1 country code (US, GB, JP, ...)"
+    ),
 ) -> None:
     """List available video categories for a region."""
     try:
