@@ -29,7 +29,7 @@ class Playlist:
     privacy_status: str
 
     @classmethod
-    def from_api_response(cls, data: dict) -> "Playlist":
+    def from_api_response(cls, data: dict) -> Playlist:
         """Parse a Playlist from a YouTube API response dict.
 
         Args:
