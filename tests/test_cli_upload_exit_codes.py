@@ -109,6 +109,7 @@ class TestMachineReadableOutput:
             side_effect=UploadCommittedError(title="Loom (1990)", video_id=video_id),
         )
 
-        line = next(l for l in result.output.splitlines() if l.startswith("video_id:"))
+        lines = result.output.splitlines()
+        line = next(t for t in lines if t.startswith("video_id:"))
         assert "\x1b" not in line
         assert line == f"video_id: {video_id}"
