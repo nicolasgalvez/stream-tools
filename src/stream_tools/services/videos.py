@@ -7,6 +7,7 @@ from pathlib import Path
 
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
+from loguru import logger
 
 from stream_tools.exceptions import QuotaExceededError, UploadCommittedError
 from stream_tools.models.common import PageResult
@@ -101,6 +102,44 @@ class VideoService(BaseService):
         """
         return UploadCommittedError(title=title, video_id=self._find_video_id_by_title(title))
 
+    def _uploads_playlist_id(self) -> str | None:
+        """The playlist YouTube keeps of this channel's own uploads.
+
+        `videos.list` has no `mine` parameter — that belongs to `search.list`,
+        and passing it raises TypeError before a request is ever made. The
+        documented route to a channel's own videos is the uploads playlist that
+        `channels.list` reports.
+        """
+        response = self.youtube.channels().list(part="contentDetails", mine=True).execute()
+        items = response.get("items", [])
+        if not items:
+            return None
+        return items[0].get("contentDetails", {}).get("relatedPlaylists", {}).get("uploads")
+
+    def _own_video_ids(
+        self, max_results: int = 50, page_token: str | None = None
+    ) -> tuple[list[str], str | None]:
+        """Ids of this channel's videos, newest first, and the next page token."""
+        playlist_id = self._uploads_playlist_id()
+        if not playlist_id:
+            return [], None
+
+        kwargs: dict = {
+            "part": "contentDetails",
+            "playlistId": playlist_id,
+            "maxResults": max_results,
+        }
+        if page_token:
+            kwargs["pageToken"] = page_token
+
+        response = self.youtube.playlistItems().list(**kwargs).execute()
+        ids = [
+            item["contentDetails"]["videoId"]
+            for item in response.get("items", [])
+            if item.get("contentDetails", {}).get("videoId")
+        ]
+        return ids, response.get("nextPageToken")
+
     def _find_video_id_by_title(self, title: str) -> str | None:
         """Find a video on this channel by exact title.
 
@@ -108,13 +147,15 @@ class VideoService(BaseService):
         "not found yet", not "not uploaded".
         """
         try:
-            response = (
-                self.youtube.videos().list(part="snippet", mine=True, maxResults=50).execute()
-            )
+            ids, _ = self._own_video_ids(max_results=50)
+            if not ids:
+                return None
+            response = self.youtube.videos().list(part="snippet", id=",".join(ids)).execute()
             for item in response.get("items", []):
                 if item.get("snippet", {}).get("title") == title:
                     return item.get("id")
         except Exception:  # noqa: BLE001 - best-effort id lookup; must degrade to None
+            logger.warning("Could not look up {!r} to recover its id", title)
             return None
         return None
 
@@ -133,20 +174,22 @@ class VideoService(BaseService):
             PageResult containing Video items and pagination tokens.
         """
         try:
-            kwargs: dict = {
-                "part": "snippet,status,statistics,contentDetails",
-                "mine": True,
-                "maxResults": max_results,
-            }
-            if page_token:
-                kwargs["pageToken"] = page_token
+            ids, next_page_token = self._own_video_ids(
+                max_results=max_results, page_token=page_token
+            )
+            if not ids:
+                return PageResult(items=[], next_page_token=next_page_token, prev_page_token=None)
 
-            response = self.youtube.videos().list(**kwargs).execute()
+            response = (
+                self.youtube.videos()
+                .list(part="snippet,status,statistics,contentDetails", id=",".join(ids))
+                .execute()
+            )
 
             videos = [Video.from_api_response(item) for item in response.get("items", [])]
             return PageResult(
                 items=videos,
-                next_page_token=response.get("nextPageToken"),
+                next_page_token=next_page_token,
                 prev_page_token=response.get("prevPageToken"),
                 total_results=response.get("pageInfo", {}).get("totalResults", 0),
             )

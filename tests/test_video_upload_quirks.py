@@ -57,7 +57,20 @@ def quota_error():
 
 
 def channel_lists(mock_youtube, titles):
-    """The channel's existing videos, as videos().list(mine=True) returns them."""
+    """The channel's existing videos, as the API really reports them.
+
+    Through the uploads playlist, not `videos().list(mine=True)`. This helper
+    used to mock the latter, which is why the recovery path passed its tests for
+    months while raising TypeError against the real API on every call: there is
+    no `mine` parameter on `videos.list`. A mock that accepts a call the service
+    rejects tests nothing.
+    """
+    mock_youtube.channels.return_value.list.return_value.execute.return_value = {
+        "items": [{"contentDetails": {"relatedPlaylists": {"uploads": "UUtest"}}}]
+    }
+    mock_youtube.playlistItems.return_value.list.return_value.execute.return_value = {
+        "items": [{"contentDetails": {"videoId": f"id-{i}"}} for i, _ in enumerate(titles)]
+    }
     mock_youtube.videos.return_value.list.return_value.execute.return_value = {
         "items": [
             {"id": f"id-{i}", "snippet": {"title": t}, "status": {"privacyStatus": "private"}}
