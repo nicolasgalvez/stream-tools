@@ -64,7 +64,7 @@ jobs:
 
             TRANSITIONS=$(curl --silent --fail-with-body \
               --user "$JIRA_EMAIL:$JIRA_API_TOKEN" \
-              --url "$url")
+              --url "$url") || { echo "  ⚠ Could not fetch transitions for $key — skipping."; continue; }
             TARGET_ID=$(echo "$TRANSITIONS" | jq -r --arg name "$TARGET_COLUMN" \
               '.transitions[] | select(.name == $name) | .id')
 
@@ -142,7 +142,7 @@ jobs:
 
             TRANSITIONS=$(curl --silent --fail-with-body \
               --user "$JIRA_EMAIL:$JIRA_API_TOKEN" \
-              --url "$url")
+              --url "$url") || { echo "  ⚠ Could not fetch transitions for $key — skipping."; continue; }
             TARGET_ID=$(echo "$TRANSITIONS" | jq -r --arg name "$TARGET_COLUMN" \
               '.transitions[] | select(.name == $name) | .id')
 
