@@ -14,6 +14,7 @@ jobs:
     # anyone opening a pull request run code on the homelab host. Hosted
     # runners are also free for public repos, so there is nothing to save.
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: googleapis/release-please-action@v5
         id: release
