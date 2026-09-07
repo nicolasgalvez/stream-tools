@@ -23,7 +23,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pdoc>=14.0",
-    "pytest>=7.0",
+    "pytest>=9.1.1",
     "pytest-cov>=4.0",
     # Pinned: unpinned, CI installed whatever shipped that day. 0.16 widened
     # ruff's default rules and surfaced 84 pre-existing findings, so the gate
