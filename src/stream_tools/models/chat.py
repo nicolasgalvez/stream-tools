@@ -41,7 +41,9 @@ class ChatMessage:
             author_channel_id=author.get("channelId", ""),
             author_display_name=author.get("displayName", ""),
             message_text=message_details.get("messageText", ""),
-            published_at=datetime.fromisoformat(published.replace("Z", "+00:00")) if published else datetime.min,
+            # datetime.min stays naive on purpose: giving it a tzinfo would
+            # change the sentinel value callers already compare against.
+            published_at=datetime.fromisoformat(published) if published else datetime.min,  # noqa: DTZ901
             type=snippet.get("type", "textMessageEvent"),
         )
 

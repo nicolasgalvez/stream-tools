@@ -84,7 +84,7 @@ select = [
 
 ignore = [
     # `raise ... from err` sets __cause__, which changes the traceback a caller
-    # sees. 47 sites; worth doing, but it is an behavior change and belongs in
+    # sees. 47 sites; worth doing, but it is a behavior change and belongs in
     # its own PR, not in a lint-configuration one.
     "B904",
     # `class X(str, Enum)` -> `StrEnum` changes what `str(X.A)` returns, and

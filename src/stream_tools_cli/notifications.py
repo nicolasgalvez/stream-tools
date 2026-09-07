@@ -29,7 +29,10 @@ def send_discord_notification(
                 "title": title,
                 "description": message,
                 "color": color,
-                "timestamp": datetime.utcnow().isoformat(),
+                # utcnow() emits no offset. datetime.now(UTC) would append
+                # "+00:00" and change the payload Discord receives, so the swap
+                # is a behavior change and is left for its own PR.
+                "timestamp": datetime.utcnow().isoformat(),  # noqa: DTZ003
             }
         ]
     }

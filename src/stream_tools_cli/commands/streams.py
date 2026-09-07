@@ -465,7 +465,9 @@ def watch(
                 stream = client.streams.get(stream_id)
                 consecutive_api_errors = 0
                 health = stream.health_status.value if stream.health_status else "noData"
-                timestamp = datetime.now().strftime("%H:%M:%S")
+                # Local wall-clock on purpose: this line is read by a human
+                # watching the monitor, not parsed.
+                timestamp = datetime.now().strftime("%H:%M:%S")  # noqa: DTZ005
 
                 # Determine health color and status
                 if health == "good":

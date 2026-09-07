@@ -59,7 +59,7 @@ def _upload_thumbnail(client, broadcast_id: str, source: str) -> None:
     import urllib.request
 
     # Check if it's a URL
-    if source.startswith("http://") or source.startswith("https://"):
+    if source.startswith(("http://", "https://")):
         console.print(f"Downloading thumbnail from {source}...")
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
             tmp_path = tmp.name
@@ -372,12 +372,11 @@ def create(
     scheduled = None
     json_start = json_data.get("scheduled_start")
     if start is not None:
-        if start.lower() == "now":
-            scheduled = None  # Immediate broadcast
-        else:
-            scheduled = datetime.fromisoformat(start.replace("Z", "+00:00"))
+        # "now" means an immediate broadcast, which the API expresses as no
+        # scheduled start at all.
+        scheduled = None if start.lower() == "now" else datetime.fromisoformat(start)
     elif json_start is not None:
-        scheduled = datetime.fromisoformat(json_start.replace("Z", "+00:00"))
+        scheduled = datetime.fromisoformat(json_start)
         if scheduled < datetime.now(UTC):
             console.print(
                 "[yellow]Note:[/yellow] scheduled_start from JSON is in the past, creating immediate broadcast"

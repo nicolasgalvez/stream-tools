@@ -79,7 +79,7 @@ class VideoService(BaseService):
             )
             response = None
             while response is None:
-                status, response = request.next_chunk()
+                _status, response = request.next_chunk()
             return Video.from_api_response(response)
         except HttpError as e:
             if _is_redirect_missing_location(e):
