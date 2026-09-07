@@ -29,7 +29,7 @@ dev = [
     # ruff's default rules and surfaced 84 pre-existing findings, so the gate
     # passed or failed depending on the date rather than the code. Upgrading
     # is worth doing deliberately, with those findings addressed.
-    "ruff==0.14.14",
+    "ruff==0.16.6",
 ]
 mcp = [
     "mcp>=1.12.0",
