@@ -7,8 +7,8 @@ from stream_tools.models.common import (
     LifeCycleStatus,
     PageResult,
     PrivacyStatus,
-    StreamResolution,
     StreamFrameRate,
+    StreamResolution,
 )
 from stream_tools.models.stream import LiveStream
 from stream_tools.models.video import Video, VideoLicense
@@ -23,8 +23,8 @@ __all__ = [
     "LiveStream",
     "PageResult",
     "PrivacyStatus",
-    "StreamResolution",
     "StreamFrameRate",
+    "StreamResolution",
     "Video",
     "VideoLicense",
 ]

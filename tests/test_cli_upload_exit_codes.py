@@ -12,13 +12,13 @@ import pytest
 from typer.testing import CliRunner
 
 from stream_tools.exceptions import APIError, QuotaExceededError, UploadCommittedError
+from stream_tools_cli.commands.videos import app
 from stream_tools_cli.exit_codes import (
     EXIT_ERROR,
     EXIT_OK,
     EXIT_QUOTA_EXCEEDED,
     EXIT_UPLOAD_COMMITTED,
 )
-from stream_tools_cli.commands.videos import app
 
 runner = CliRunner()
 

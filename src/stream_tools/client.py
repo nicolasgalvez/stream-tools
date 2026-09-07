@@ -1,7 +1,6 @@
 """Facade client aggregating all YouTube Live API services."""
 
 import httplib2
-
 from google.oauth2.credentials import Credentials
 from google_auth_httplib2 import AuthorizedHttp
 from googleapiclient.discovery import Resource, build
@@ -11,8 +10,8 @@ from stream_tools.services.broadcasts import BroadcastService
 from stream_tools.services.channels import ChannelService
 from stream_tools.services.chat import ChatService
 from stream_tools.services.moderators import ModeratorService
-from stream_tools.services.streams import StreamService
 from stream_tools.services.playlists import PlaylistService
+from stream_tools.services.streams import StreamService
 from stream_tools.services.videos import VideoService
 
 

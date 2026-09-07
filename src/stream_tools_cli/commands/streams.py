@@ -8,10 +8,9 @@ from rich.console import Console
 
 from stream_tools.exceptions import StreamToolsError
 from stream_tools.models.common import BroadcastStatus, StreamFrameRate, StreamResolution
+from stream_tools_cli.commands import get_client
 from stream_tools_cli.formatting import output
 from stream_tools_cli.state import common_options, config
-
-from stream_tools_cli.commands import get_client
 
 app = typer.Typer(no_args_is_help=True)
 console = Console()
@@ -408,7 +407,7 @@ def watch(
                     broadcast_status = b.life_cycle_status.value
                     broadcast_url = f"https://youtube.com/live/{b.id}"
                     break
-    except Exception:
+    except Exception:  # noqa: BLE001 - supplementary display lookup
         logger.opt(exception=True).debug("Broadcast lookup failed")
 
     # Get AzuraCast station info
@@ -422,7 +421,7 @@ def watch(
             if np.get("now_playing"):
                 song = np["now_playing"].get("song", {})
                 now_playing = f"{song.get('artist', '?')} - {song.get('title', '?')}"
-        except Exception:
+        except Exception:  # noqa: BLE001 - supplementary display lookup
             logger.opt(exception=True).debug("AzuraCast lookup failed")
 
     console.print(f"[bold]Station:[/bold] {station_name}")
@@ -466,7 +465,9 @@ def watch(
                 stream = client.streams.get(stream_id)
                 consecutive_api_errors = 0
                 health = stream.health_status.value if stream.health_status else "noData"
-                timestamp = datetime.now().strftime("%H:%M:%S")
+                # Local wall-clock on purpose: this line is read by a human
+                # watching the monitor, not parsed.
+                timestamp = datetime.now().strftime("%H:%M:%S")  # noqa: DTZ005
 
                 # Determine health color and status
                 if health == "good":
@@ -536,7 +537,7 @@ def watch(
                                     f"Stream health is now **{health_after}**",
                                     DISCORD_GREEN,
                                 )
-                        except Exception as e:
+                        except Exception as e:  # noqa: BLE001 - watchdog must keep polling
                             console.print(f"[red]Restart failed:[/red] {e}")
                             send_notification(
                                 "❌ Restart Failed",

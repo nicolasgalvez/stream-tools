@@ -1,5 +1,6 @@
 """OAuth2 authentication manager for YouTube API."""
 
+import contextlib
 import json
 import os
 import tempfile
@@ -291,7 +292,10 @@ class OAuthManager:
 
         token_path = self.config.token_path
         token_path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = tempfile.NamedTemporaryFile(
+        # Write-and-rename, not a leaked handle: the file has to outlive the
+        # block (delete=False) so os.replace can move it into place, and it is
+        # closed explicitly on both the success and the failure path below.
+        tmp = tempfile.NamedTemporaryFile(  # noqa: SIM115 - closed explicitly; outlives the block for os.replace
             dir=str(token_path.parent), suffix=".tmp", delete=False, mode="w"
         )
         try:
@@ -301,10 +305,8 @@ class OAuthManager:
             os.replace(tmp.name, str(token_path))
         except Exception:
             tmp.close()
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(tmp.name)
-            except OSError:
-                pass
             raise
 
     def run_flow_for_client_secret(self, client_secret_path: Path) -> None:

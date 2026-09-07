@@ -11,6 +11,7 @@ from stream_tools.exceptions import (
     StreamToolsError,
     UploadCommittedError,
 )
+from stream_tools_cli.commands import get_client
 from stream_tools_cli.exit_codes import (
     EXIT_ERROR,
     EXIT_QUOTA_EXCEEDED,
@@ -18,8 +19,6 @@ from stream_tools_cli.exit_codes import (
 )
 from stream_tools_cli.formatting import output
 from stream_tools_cli.state import common_options
-
-from stream_tools_cli.commands import get_client
 
 app = typer.Typer(no_args_is_help=True)
 console = Console()

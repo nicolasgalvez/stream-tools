@@ -47,7 +47,7 @@ def status() -> None:
             console.print(
                 f"[bold]Frontend Running:[/bold] [{fe_color}]{frontend_running}[/{fe_color}]"
             )
-        except Exception:
+        except Exception:  # noqa: BLE001 - optional detail
             pass  # Service status endpoint may not be available
 
         # Get now playing
@@ -60,12 +60,12 @@ def status() -> None:
                 )
             listeners = np.get("listeners", {})
             console.print(f"[bold]Listeners:[/bold] {listeners.get('current', 0)}")
-        except Exception:
+        except Exception:  # noqa: BLE001 - optional detail
             pass
 
         if data.get("public_player_url"):
             console.print(f"\n[bold]Player URL:[/bold] {data['public_player_url']}")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - command boundary -> exit 1
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
 
@@ -80,7 +80,7 @@ def restart() -> None:
         console.print("[green]Backend restarted.[/green]")
         if result.get("message"):
             console.print(result["message"])
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - command boundary -> exit 1
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
 
@@ -95,7 +95,7 @@ def stop() -> None:
         console.print("[yellow]Backend stopped.[/yellow]")
         if result.get("message"):
             console.print(result["message"])
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - command boundary -> exit 1
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
 
@@ -110,6 +110,6 @@ def start() -> None:
         console.print("[green]Backend started.[/green]")
         if result.get("message"):
             console.print(result["message"])
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - command boundary -> exit 1
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)

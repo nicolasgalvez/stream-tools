@@ -63,7 +63,7 @@ def setup(
             console.print(f"Creating project [bold]{project_id}[/bold]...")
             svc.create_project(project_id)
             console.print("[green]Project created.[/green]")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - advisory step; wizard continues
             console.print(f"[yellow]Project creation: {e}[/yellow]")
             console.print("Continuing with existing project...")
 
@@ -72,7 +72,7 @@ def setup(
     try:
         svc.enable_youtube_api(project_id)
         console.print("[green]YouTube API enabled.[/green]")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - advisory step; wizard continues
         console.print(f"[yellow]API enablement: {e}[/yellow]")
 
     # Step 4: OAuth consent screen + test users + credentials

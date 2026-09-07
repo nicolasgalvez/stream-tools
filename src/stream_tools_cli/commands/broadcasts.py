@@ -1,7 +1,7 @@
 """Broadcast commands: list, get, create, update, delete, bind, transition."""
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import typer
@@ -9,10 +9,9 @@ from rich.console import Console
 
 from stream_tools.exceptions import StreamToolsError
 from stream_tools.models.common import BroadcastStatus, LifeCycleStatus, PrivacyStatus
+from stream_tools_cli.commands import get_client
 from stream_tools_cli.formatting import output
 from stream_tools_cli.state import common_options
-
-from stream_tools_cli.commands import get_client
 
 app = typer.Typer(no_args_is_help=True)
 console = Console()
@@ -22,7 +21,7 @@ def _format_duration(start: datetime | None) -> str:
     """Format duration since start time as 'Xh Ym Zs'."""
     if not start:
         return "-"
-    delta = datetime.now(timezone.utc) - start
+    delta = datetime.now(UTC) - start
     total_seconds = int(delta.total_seconds())
     hours, remainder = divmod(total_seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
@@ -60,7 +59,7 @@ def _upload_thumbnail(client, broadcast_id: str, source: str) -> None:
     import urllib.request
 
     # Check if it's a URL
-    if source.startswith("http://") or source.startswith("https://"):
+    if source.startswith(("http://", "https://")):
         console.print(f"Downloading thumbnail from {source}...")
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
             tmp_path = tmp.name
@@ -373,13 +372,12 @@ def create(
     scheduled = None
     json_start = json_data.get("scheduled_start")
     if start is not None:
-        if start.lower() == "now":
-            scheduled = None  # Immediate broadcast
-        else:
-            scheduled = datetime.fromisoformat(start.replace("Z", "+00:00"))
+        # "now" means an immediate broadcast, which the API expresses as no
+        # scheduled start at all.
+        scheduled = None if start.lower() == "now" else datetime.fromisoformat(start)
     elif json_start is not None:
-        scheduled = datetime.fromisoformat(json_start.replace("Z", "+00:00"))
-        if scheduled < datetime.now(timezone.utc):
+        scheduled = datetime.fromisoformat(json_start)
+        if scheduled < datetime.now(UTC):
             console.print(
                 "[yellow]Note:[/yellow] scheduled_start from JSON is in the past, creating immediate broadcast"
             )
@@ -431,7 +429,7 @@ def create(
                 try:
                     azura.restart_backend()
                     console.print("[green]AzuraCast backend restarted.[/green]")
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001 - side task; must not fail the create
                     console.print(f"[yellow]Warning:[/yellow] Failed to restart AzuraCast: {e}")
             else:
                 console.print(

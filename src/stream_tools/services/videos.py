@@ -79,7 +79,7 @@ class VideoService(BaseService):
             )
             response = None
             while response is None:
-                status, response = request.next_chunk()
+                _status, response = request.next_chunk()
             return Video.from_api_response(response)
         except HttpError as e:
             if _is_redirect_missing_location(e):
@@ -114,7 +114,7 @@ class VideoService(BaseService):
             for item in response.get("items", []):
                 if item.get("snippet", {}).get("title") == title:
                     return item.get("id")
-        except Exception:
+        except Exception:  # noqa: BLE001 - best-effort id lookup; must degrade to None
             return None
         return None
 

@@ -93,7 +93,7 @@ class SetupService:
 
     def _run_gcloud(self, args: list[str]) -> str:
         """Run a gcloud command and return stdout."""
-        cmd = ["gcloud"] + args
+        cmd = ["gcloud", *args]
         try:
             result = subprocess.run(
                 cmd,

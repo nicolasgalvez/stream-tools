@@ -29,7 +29,10 @@ def send_discord_notification(
                 "title": title,
                 "description": message,
                 "color": color,
-                "timestamp": datetime.utcnow().isoformat(),
+                # utcnow() emits no offset. datetime.now(UTC) would append
+                # "+00:00" and change the payload Discord receives, so the swap
+                # is a behavior change and is left for its own PR.
+                "timestamp": datetime.utcnow().isoformat(),  # noqa: DTZ003
             }
         ]
     }
@@ -37,7 +40,7 @@ def send_discord_notification(
     try:
         response = requests.post(webhook_url, json=payload, timeout=10)
         return response.status_code == 204
-    except Exception:
+    except Exception:  # noqa: BLE001 - delivery is best-effort
         return False
 
 

@@ -12,7 +12,18 @@ logger.remove()
 
 import typer
 
-from stream_tools_cli.commands import auth, azuracast, bans, broadcasts, channels, chat, moderators, setup, streams, videos
+from stream_tools_cli.commands import (
+    auth,
+    azuracast,
+    bans,
+    broadcasts,
+    channels,
+    chat,
+    moderators,
+    setup,
+    streams,
+    videos,
+)
 
 app = typer.Typer(
     name="yt",

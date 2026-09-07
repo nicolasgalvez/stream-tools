@@ -46,5 +46,69 @@ packages = ["src/stream_tools", "src/stream_tools_cli", "src/stream_tools_mcp"]
 src = ["src"]
 line-length = 100
 
+# Ruff's *default* rule set is not stable across releases: 0.14 defaulted to
+# E4/E7/E9/F, 0.16 widened the default to a few hundred rules. With no `select`
+# here, "does this repo lint?" depended on which ruff CI happened to install.
+# The families below are chosen deliberately, so a ruff upgrade changes the
+# gate only when we edit this list.
+[tool.ruff.lint]
+select = [
+    "F",     # pyflakes - real errors (undefined names, unused imports)
+    "E4",    # pycodestyle - import placement
+    "E7",    # pycodestyle - statement errors (bare except, comparisons)
+    "E9",    # pycodestyle - syntax / IO errors
+    "W",     # pycodestyle warnings
+    "I",     # isort - import ordering
+    "UP",    # pyupgrade - keep up with the >=3.11 floor
+    "B",     # flake8-bugbear - likely bugs
+    "BLE",   # flake8-blind-except - unqualified `except Exception`
+    "C4",    # flake8-comprehensions
+    "DTZ",   # flake8-datetimez - naive datetimes
+    "PIE",   # flake8-pie
+    "SIM",   # flake8-simplify
+    "FURB",  # refurb - modern stdlib idioms
+    "RUF",   # ruff-specific
+    "LOG",   # flake8-logging
+    "G",     # flake8-logging-format
+    "ISC",   # implicit string concatenation
+    "TC",    # typing-only imports
+    "FLY",   # static-join-to-f-string
+    "FA",    # future annotations
+    "ASYNC", # flake8-async
+    "EXE",   # shebang / executable-bit consistency
+    "INT",   # gettext
+    "PGH",   # pygrep-hooks - blanket noqa / type: ignore
+    "N",     # pep8-naming
+    "YTT",   # sys.version misuse
+]
+
+ignore = [
+    # `raise ... from err` sets __cause__, which changes the traceback a caller
+    # sees. 47 sites; worth doing, but it is a behavior change and belongs in
+    # its own PR, not in a lint-configuration one.
+    "B904",
+    # `class X(str, Enum)` -> `StrEnum` changes what `str(X.A)` returns, and
+    # these values are serialized to the YouTube API. Deliberately not taken.
+    "UP042",
+]
+
 [tool.ruff.lint.per-file-ignores]
 "src/stream_tools_cli/app.py" = ["E402"]
+# Every tool in the MCP server is a protocol boundary: an MCP tool has to
+# return an error string, because an exception escaping the handler kills the
+# response rather than reporting the failure to the client. All 27 handlers are
+# the same three lines, so the exemption is stated once for the file instead of
+# 27 times. Each blind catch elsewhere carries its own `# noqa: BLE001` and a
+# reason.
+"src/stream_tools_mcp/server.py" = ["BLE001"]
+
+# B008 (function call in a default argument) exists to catch a mutable default
+# built once at import time. `typer.Option(...)` / `typer.Argument(...)` in the
+# signature IS Typer's prescribed way to declare a parameter - Typer reads those
+# objects to build the command, and moving the call into the body would delete
+# the flag. Ruff already exempts them when the parameter is annotated `int`,
+# `str` or `bool`; these 8 sites are only flagged because the annotation is
+# `Path`. Name the two calls rather than muting the rule for whole files, so
+# B008 still catches a genuine mutable default anywhere in the CLI.
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["typer.Option", "typer.Argument"]
