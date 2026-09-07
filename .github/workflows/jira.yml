@@ -106,6 +106,10 @@ jobs:
           JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
           JIRA_KEYS: ${{ steps.jira.outputs.keys }}
           TARGET_COLUMN: "Done"
+          # Untrusted: a PR title and body are attacker-controlled on a public
+          # repo. Passed through the environment, never interpolated below.
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           set -euo pipefail
           : "${JIRA_BASE_URL:?JIRA_BASE_URL secret is empty}"
@@ -116,7 +120,23 @@ jobs:
           JIRA_BASE_URL="$(printf '%s' "$JIRA_BASE_URL" | tr -d '[:space:]')"
           JIRA_BASE_URL="${JIRA_BASE_URL%/}"
 
+          # A ticket is Done only if the PR says it closes it. A key in a branch
+          # name or title means the work is related, not finished — a ticket takes
+          # several PRs, and closing it on the first one left VGM-14 marked Done
+          # for two months against a placeholder. GitHub's closing keywords are
+          # the vocabulary.
+          CLOSING_KEYS=$(printf '%s\n%s' "$PR_TITLE" "$PR_BODY" \
+            | grep -ioE '\b(close[sd]?|fix(e[sd])?|resolve[sd]?)\b[[:space:]:]+[A-Za-z][A-Za-z0-9]+-[0-9]+' \
+            | grep -ioE '[A-Za-z][A-Za-z0-9]+-[0-9]+' \
+            | tr "[:lower:]" "[:upper:]" \
+            | sort -u || true)
+          echo "Closing keywords name: ${CLOSING_KEYS:-(none)}"
+
           for key in $(echo "$JIRA_KEYS" | jq -r '.[]'); do
+            if ! printf '%s\n' "$CLOSING_KEYS" | grep -qx "$key"; then
+              echo "  – $key is referenced but not closed by this PR; leaving it."
+              continue
+            fi
             echo "Transitioning $key to $TARGET_COLUMN..."
             url="${JIRA_BASE_URL}/rest/api/3/issue/${key}/transitions"
 
