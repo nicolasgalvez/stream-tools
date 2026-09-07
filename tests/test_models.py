@@ -1,10 +1,15 @@
 """Tests for model from_api_response parsing."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from stream_tools.models.broadcast import Broadcast
 from stream_tools.models.chat import ChatBan, ChatMessage, ChatModerator
-from stream_tools.models.common import LifeCycleStatus, PrivacyStatus, StreamFrameRate, StreamResolution
+from stream_tools.models.common import (
+    LifeCycleStatus,
+    PrivacyStatus,
+    StreamFrameRate,
+    StreamResolution,
+)
 from stream_tools.models.stream import LiveStream
 
 
@@ -35,9 +40,9 @@ class TestBroadcast:
         assert b.id == "abc123"
         assert b.title == "My Stream"
         assert b.description == "Test broadcast"
-        assert b.scheduled_start == datetime(2026, 1, 24, 10, 0, tzinfo=timezone.utc)
-        assert b.scheduled_end == datetime(2026, 1, 24, 12, 0, tzinfo=timezone.utc)
-        assert b.actual_start == datetime(2026, 1, 24, 10, 1, tzinfo=timezone.utc)
+        assert b.scheduled_start == datetime(2026, 1, 24, 10, 0, tzinfo=UTC)
+        assert b.scheduled_end == datetime(2026, 1, 24, 12, 0, tzinfo=UTC)
+        assert b.actual_start == datetime(2026, 1, 24, 10, 1, tzinfo=UTC)
         assert b.actual_end is None
         assert b.privacy == PrivacyStatus.UNLISTED
         assert b.life_cycle_status == LifeCycleStatus.LIVE

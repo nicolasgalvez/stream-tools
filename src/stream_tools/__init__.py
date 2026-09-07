@@ -8,8 +8,8 @@ from stream_tools.exceptions import (
 )
 
 __all__ = [
-    "YouTubeLiveClient",
-    "StreamToolsError",
-    "AuthenticationError",
     "APIError",
+    "AuthenticationError",
+    "StreamToolsError",
+    "YouTubeLiveClient",
 ]

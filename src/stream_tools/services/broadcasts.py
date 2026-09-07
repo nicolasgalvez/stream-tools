@@ -1,6 +1,6 @@
 """Broadcast service for YouTube Live broadcasts."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from googleapiclient.errors import HttpError
 
@@ -141,7 +141,7 @@ class BroadcastService(BaseService):
         # YouTube API requires scheduledStartTime to be in the future
         # Current time works - broadcast auto-starts when stream connects
         if scheduled_start is None:
-            scheduled_start = datetime.now(timezone.utc)
+            scheduled_start = datetime.now(UTC)
 
         body = {
             "snippet": {

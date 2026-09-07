@@ -2,10 +2,11 @@
 
 import inspect
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from functools import wraps
-from typing import Callable, TypeVar
+from typing import TypeVar
 
 import typer
 from loguru import logger

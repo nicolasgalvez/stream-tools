@@ -1,7 +1,7 @@
 """Broadcast commands: list, get, create, update, delete, bind, transition."""
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import typer
@@ -9,10 +9,9 @@ from rich.console import Console
 
 from stream_tools.exceptions import StreamToolsError
 from stream_tools.models.common import BroadcastStatus, LifeCycleStatus, PrivacyStatus
+from stream_tools_cli.commands import get_client
 from stream_tools_cli.formatting import output
 from stream_tools_cli.state import common_options
-
-from stream_tools_cli.commands import get_client
 
 app = typer.Typer(no_args_is_help=True)
 console = Console()
@@ -22,7 +21,7 @@ def _format_duration(start: datetime | None) -> str:
     """Format duration since start time as 'Xh Ym Zs'."""
     if not start:
         return "-"
-    delta = datetime.now(timezone.utc) - start
+    delta = datetime.now(UTC) - start
     total_seconds = int(delta.total_seconds())
     hours, remainder = divmod(total_seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
@@ -379,7 +378,7 @@ def create(
             scheduled = datetime.fromisoformat(start.replace("Z", "+00:00"))
     elif json_start is not None:
         scheduled = datetime.fromisoformat(json_start.replace("Z", "+00:00"))
-        if scheduled < datetime.now(timezone.utc):
+        if scheduled < datetime.now(UTC):
             console.print(
                 "[yellow]Note:[/yellow] scheduled_start from JSON is in the past, creating immediate broadcast"
             )

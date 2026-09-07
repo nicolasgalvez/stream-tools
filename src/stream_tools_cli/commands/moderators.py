@@ -4,10 +4,9 @@ import typer
 from rich.console import Console
 
 from stream_tools.exceptions import StreamToolsError
+from stream_tools_cli.commands import get_client
 from stream_tools_cli.formatting import output
 from stream_tools_cli.state import common_options
-
-from stream_tools_cli.commands import get_client
 
 app = typer.Typer(no_args_is_help=True)
 console = Console()

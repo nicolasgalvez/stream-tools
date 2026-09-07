@@ -1,6 +1,6 @@
 """Tests for service classes with mocked YouTube API."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -108,7 +108,7 @@ class TestBroadcastServiceCreate:
 
         result = broadcast_service.create(
             title="New Broadcast",
-            scheduled_start=datetime(2026, 2, 1, 15, 0, tzinfo=timezone.utc),
+            scheduled_start=datetime(2026, 2, 1, 15, 0, tzinfo=UTC),
             privacy=PrivacyStatus.PRIVATE,
             description="desc",
         )
