@@ -94,3 +94,14 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "src/stream_tools_cli/app.py" = ["E402"]
+
+# B008 (function call in a default argument) exists to catch a mutable default
+# built once at import time. `typer.Option(...)` / `typer.Argument(...)` in the
+# signature IS Typer's prescribed way to declare a parameter - Typer reads those
+# objects to build the command, and moving the call into the body would delete
+# the flag. Ruff already exempts them when the parameter is annotated `int`,
+# `str` or `bool`; these 8 sites are only flagged because the annotation is
+# `Path`. Name the two calls rather than muting the rule for whole files, so
+# B008 still catches a genuine mutable default anywhere in the CLI.
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["typer.Option", "typer.Argument"]
