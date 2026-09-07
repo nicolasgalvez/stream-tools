@@ -94,6 +94,13 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "src/stream_tools_cli/app.py" = ["E402"]
+# Every tool in the MCP server is a protocol boundary: an MCP tool has to
+# return an error string, because an exception escaping the handler kills the
+# response rather than reporting the failure to the client. All 27 handlers are
+# the same three lines, so the exemption is stated once for the file instead of
+# 27 times. Each blind catch elsewhere carries its own `# noqa: BLE001` and a
+# reason.
+"src/stream_tools_mcp/server.py" = ["BLE001"]
 
 # B008 (function call in a default argument) exists to catch a mutable default
 # built once at import time. `typer.Option(...)` / `typer.Argument(...)` in the

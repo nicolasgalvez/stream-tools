@@ -430,7 +430,7 @@ def create(
                 try:
                     azura.restart_backend()
                     console.print("[green]AzuraCast backend restarted.[/green]")
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001 - side task; must not fail the create
                     console.print(f"[yellow]Warning:[/yellow] Failed to restart AzuraCast: {e}")
             else:
                 console.print(

@@ -407,7 +407,7 @@ def watch(
                     broadcast_status = b.life_cycle_status.value
                     broadcast_url = f"https://youtube.com/live/{b.id}"
                     break
-    except Exception:
+    except Exception:  # noqa: BLE001 - supplementary display lookup
         logger.opt(exception=True).debug("Broadcast lookup failed")
 
     # Get AzuraCast station info
@@ -421,7 +421,7 @@ def watch(
             if np.get("now_playing"):
                 song = np["now_playing"].get("song", {})
                 now_playing = f"{song.get('artist', '?')} - {song.get('title', '?')}"
-        except Exception:
+        except Exception:  # noqa: BLE001 - supplementary display lookup
             logger.opt(exception=True).debug("AzuraCast lookup failed")
 
     console.print(f"[bold]Station:[/bold] {station_name}")
@@ -535,7 +535,7 @@ def watch(
                                     f"Stream health is now **{health_after}**",
                                     DISCORD_GREEN,
                                 )
-                        except Exception as e:
+                        except Exception as e:  # noqa: BLE001 - watchdog must keep polling
                             console.print(f"[red]Restart failed:[/red] {e}")
                             send_notification(
                                 "❌ Restart Failed",

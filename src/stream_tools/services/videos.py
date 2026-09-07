@@ -114,7 +114,7 @@ class VideoService(BaseService):
             for item in response.get("items", []):
                 if item.get("snippet", {}).get("title") == title:
                     return item.get("id")
-        except Exception:
+        except Exception:  # noqa: BLE001 - best-effort id lookup; must degrade to None
             return None
         return None
 

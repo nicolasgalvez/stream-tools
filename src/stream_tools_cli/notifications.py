@@ -37,7 +37,7 @@ def send_discord_notification(
     try:
         response = requests.post(webhook_url, json=payload, timeout=10)
         return response.status_code == 204
-    except Exception:
+    except Exception:  # noqa: BLE001 - delivery is best-effort
         return False
 
 
