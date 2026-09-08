@@ -33,6 +33,20 @@ class APIError(StreamToolsError):
         super().__init__(message)
 
 
+class ScheduleRefusedError(StreamToolsError):
+    """Raised when a scheduled publish time cannot mean what it says.
+
+    YouTube honors `status.publishAt` only while `status.privacyStatus` is
+    `private`. Sent alongside anything else it is either rejected — and the
+    caller gets an HttpError about a field they did not think they were
+    setting — or accepted and ignored, and a video meant to go out on a date
+    is simply public now.
+
+    Raised before the request, because a caller who set both meant one of
+    them and should be told which one this cannot do.
+    """
+
+
 class SetupError(StreamToolsError):
     """Raised when project setup operations fail.
 
