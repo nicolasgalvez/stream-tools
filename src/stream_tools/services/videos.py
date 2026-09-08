@@ -14,9 +14,8 @@ from stream_tools.exceptions import (
     ScheduleRefusedError,
     UploadCommittedError,
 )
-from stream_tools.models.common import PageResult
+from stream_tools.models.common import PageResult, PrivacyStatus
 from stream_tools.models.video import Video
-from stream_tools.models.common import PrivacyStatus
 from stream_tools.services.base import BaseService
 
 
