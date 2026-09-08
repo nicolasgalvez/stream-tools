@@ -9,10 +9,50 @@ from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
 from loguru import logger
 
-from stream_tools.exceptions import QuotaExceededError, UploadCommittedError
+from stream_tools.exceptions import (
+    QuotaExceededError,
+    ScheduleRefusedError,
+    UploadCommittedError,
+)
 from stream_tools.models.common import PageResult
 from stream_tools.models.video import Video
+from stream_tools.models.common import PrivacyStatus
 from stream_tools.services.base import BaseService
+
+
+def _check_schedulable(
+    publish_at: str | None, privacy_status: str | PrivacyStatus | None
+) -> None:
+    """Refuse a publish time the platform would not honor.
+
+    `publishAt` only means anything on a private video. Both call sites below
+    documented that in their own docstrings and neither looked: `upload` built
+    the body from whatever privacy it was handed, and `update` wrote
+    `publishAt` without consulting the video's current status at all — so a
+    publish time could be set on a video that was already public, and read back
+    as scheduled.
+
+    In one place so the CLI and the MCP server both get it. Two copies of a
+    rule is how one of them comes to be missing it.
+    """
+    if publish_at is None or privacy_status is None:
+        return
+    # PrivacyStatus is a str enum, so a caller may hand over either. Normalized
+    # here so the message reads "public" rather than "PrivacyStatus.PUBLIC".
+    privacy = (
+        privacy_status.value
+        if isinstance(privacy_status, PrivacyStatus)
+        else str(privacy_status)
+    )
+    if privacy == PrivacyStatus.PRIVATE.value:
+        return
+    raise ScheduleRefusedError(
+        f"A publish time only works on a private video, and this one is "
+        f"{privacy}. YouTube ignores publishAt on anything else, so "
+        f"{publish_at} would not be a schedule -- it would be a video that is "
+        f"{privacy} now. Upload it private and let the publish time make it "
+        f"public, or drop the publish time."
+    )
 
 
 class VideoService(BaseService):
@@ -48,6 +88,10 @@ class VideoService(BaseService):
         Returns:
             The uploaded Video with YouTube-assigned ID.
         """
+        # Before the file is even looked at: an upload is minutes of work, and
+        # refusing after it has run is refusing too late.
+        _check_schedulable(publish_at, privacy_status)
+
         path = Path(file_path)
         if not path.exists():
             raise FileNotFoundError(f"Video file not found: {path}")
@@ -262,6 +306,14 @@ class VideoService(BaseService):
                 body["snippet"]["tags"] = tags
             if category_id is not None:
                 body["snippet"]["categoryId"] = category_id
+            # Against the privacy the video will have, not the one this call
+            # names: setting only a publish time on a video that is already
+            # public is the quiet way to get an ignored schedule.
+            _check_schedulable(
+                publish_at,
+                privacy_status if privacy_status is not None else current.privacy_status,
+            )
+
             if privacy_status is not None:
                 body["status"]["privacyStatus"] = privacy_status
             if publish_at is not None:
