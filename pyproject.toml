@@ -22,7 +22,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pdoc>=14.0",
+    "pdoc>=16.0.0",
     "pytest>=9.1.1",
     "pytest-cov>=4.0",
     # Pinned: unpinned, CI installed whatever shipped that day. 0.16 widened
