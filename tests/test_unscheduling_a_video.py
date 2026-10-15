@@ -16,6 +16,7 @@ from stream_tools.exceptions import ScheduleRefusedError
 from stream_tools.services.videos import VideoService
 from stream_tools_cli.commands.videos import app
 from stream_tools_mcp import server
+from tests.test_upload_contract import strip
 
 WHEN = "2030-01-06T20:00:00Z"
 LATER = "2031-02-03T04:05:06Z"
@@ -137,7 +138,8 @@ class TestCli:
     def test_the_option_is_documented_in_help(self):
         result = runner.invoke(app, ["update", "--help"])
 
-        assert "--clear-publish-at" in result.output
+        # CI forces color, and Rich splits the option name across escape codes.
+        assert "--clear-publish-at" in strip(result.output)
 
 
 class TestMcp:
