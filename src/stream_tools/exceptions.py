@@ -102,17 +102,25 @@ class UploadCommittedError(StreamToolsError):
         title: The title the upload was submitted with.
         video_id: The recovered video ID, or None if it could not be found.
         committed: Always True. The upload reached YouTube.
+        cause: The text of the underlying exception, or None when unknown. It
+            is part of the message, because an operator diagnosing a halted
+            lane has nothing else to go on.
     """
 
-    def __init__(self, title: str, video_id: str | None = None, message: str | None = None):
+    def __init__(
+        self,
+        title: str,
+        video_id: str | None = None,
+        message: str | None = None,
+        cause: str | None = None,
+    ):
         self.title = title
         self.video_id = video_id
         self.committed = True
-        super().__init__(
-            message
-            or (
-                f"Upload of {title!r} committed but the response was lost"
-                + (f"; recovered video id {video_id}" if video_id else "; video id not recovered")
-                + ". Do not retry the insert - that creates a duplicate."
-            )
+        self.cause = cause
+        text = message or (
+            f"Upload of {title!r} committed but the response was lost"
+            + (f"; recovered video id {video_id}" if video_id else "; video id not recovered")
+            + ". Do not retry the insert - that creates a duplicate."
         )
+        super().__init__(f"{text} Cause: {cause}" if cause else text)

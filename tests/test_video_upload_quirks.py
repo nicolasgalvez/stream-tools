@@ -157,6 +157,28 @@ class TestRedirectMissingLocation:
 
         assert caught.value.committed is True
 
+    def test_the_error_text_carries_the_underlying_cause(self, videos, mock_youtube, video_file):
+        # An operator diagnosing a halted lane has only this text to go on.
+        insert_raises(mock_youtube, Exception(REDIRECT_MESSAGE))
+        channel_lists(mock_youtube, [])
+
+        with pytest.raises(UploadCommittedError) as caught:
+            videos.upload(video_file, title="Loom (1990)")
+
+        assert REDIRECT_MESSAGE in str(caught.value)
+
+    def test_the_cause_names_the_exception_type(self, videos, mock_youtube, video_file):
+        class RedirectMissingLocation(Exception):  # noqa: N818 - the name seen in production
+            pass
+
+        insert_raises(mock_youtube, RedirectMissingLocation(REDIRECT_MESSAGE))
+        channel_lists(mock_youtube, [])
+
+        with pytest.raises(UploadCommittedError) as caught:
+            videos.upload(video_file, title="Loom (1990)")
+
+        assert f"RedirectMissingLocation: {REDIRECT_MESSAGE}" in str(caught.value)
+
     def test_an_unrelated_error_is_not_misclassified_as_committed(
         self, videos, mock_youtube, video_file
     ):

@@ -5,6 +5,7 @@ from pathlib import Path
 
 import typer
 from rich.console import Console
+from rich.markup import escape
 
 from stream_tools.exceptions import (
     QuotaExceededError,
@@ -118,7 +119,10 @@ def upload(
     except UploadCommittedError as e:
         # The video IS on the channel. Exit 2 so a batch caller reconciles
         # instead of re-uploading and creating a duplicate.
-        console.print(f"[yellow]Upload committed:[/yellow] {e}")
+        # The message ends with the underlying cause, which can contain square
+        # brackets; escape it so Rich prints it instead of reading it as markup.
+        # soft_wrap keeps the cause on one line for a caller that captures it.
+        console.print(f"[yellow]Upload committed:[/yellow] {escape(str(e))}", soft_wrap=True)
         if e.video_id:
             # A contract line for callers, not display text. Rich highlights
             # anything numeric, and a video id can be all digits or start with
