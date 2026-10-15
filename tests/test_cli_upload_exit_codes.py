@@ -79,7 +79,9 @@ class TestExitCodes:
         assert "not retry" in result.output.lower() or "do not retry" in result.output.lower()
 
     def test_a_committed_upload_includes_the_underlying_cause(self, video_file):
-        cause = "RedirectMissingLocation: Redirected but the response is missing a Location: header."
+        cause = (
+            "RedirectMissingLocation: Redirected but the response is missing a Location: header."
+        )
         result = invoke_upload(
             video_file,
             side_effect=UploadCommittedError(title="Loom (1990)", video_id="abc123", cause=cause),
@@ -92,7 +94,9 @@ class TestExitCodes:
         # Rich would swallow "[/x]" as markup and drop it from the output.
         result = invoke_upload(
             video_file,
-            side_effect=UploadCommittedError(title="T", video_id="abc123", cause="bad [bold]x[/bold]"),
+            side_effect=UploadCommittedError(
+                title="T", video_id="abc123", cause="bad [bold]x[/bold]"
+            ),
         )
 
         assert "[bold]x[/bold]" in result.output
