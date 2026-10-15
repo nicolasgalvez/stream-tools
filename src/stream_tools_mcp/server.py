@@ -92,8 +92,13 @@ def video_update(
     category_id: str = "",
     privacy_status: str = "",
     publish_at: str = "",
+    clear_publish_at: bool = False,
 ) -> str:
-    """Update video metadata. Only provided fields are changed. Tags are comma-separated."""
+    """Update video metadata. Only provided fields are changed. Tags are comma-separated.
+
+    Set clear_publish_at to remove the video's scheduled publish time; it cannot
+    be combined with publish_at.
+    """
     try:
         tag_list = [t.strip() for t in tags.split(",")] if tags else None
         video = _get_client().videos.update(
@@ -104,6 +109,7 @@ def video_update(
             category_id=category_id or None,
             privacy_status=privacy_status or None,
             publish_at=publish_at or None,
+            clear_publish_at=clear_publish_at,
         )
         return _ok(video)
     except (StreamToolsError, Exception) as e:
