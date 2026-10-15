@@ -25,10 +25,12 @@ dev = [
     "pdoc>=16.0.0",
     "pytest>=9.1.1",
     "pytest-cov>=4.0",
-    # Pinned: unpinned, CI installed whatever shipped that day. 0.16 widened
-    # ruff's default rules and surfaced 84 pre-existing findings, so the gate
-    # passed or failed depending on the date rather than the code. Upgrading
-    # is worth doing deliberately, with those findings addressed.
+    # Pinned exactly, not floored: unpinned, CI installed whatever ruff shipped
+    # that day, so the gate passed or failed by the date rather than by the
+    # code. 0.16 widened the default rules and surfaced 84 pre-existing
+    # findings, which is why the pin is exact. Moving it means checking the new
+    # version's findings first; 0.17.0 is clean, verified by `lint + test` on
+    # main rather than ahead of the bump.
     "ruff==0.17.0",
 ]
 mcp = [
