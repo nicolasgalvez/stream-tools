@@ -15,6 +15,21 @@ from stream_tools.services.streams import StreamService
 from stream_tools.services.videos import VideoService
 
 
+def _build_http() -> httplib2.Http:
+    """An Http that leaves YouTube's resumable-upload 308s alone.
+
+    YouTube answers every chunk but the last with 308 "Resume Incomplete".
+    httplib2 treats 308 as a redirect, so without this an upload larger than one
+    chunk dies after the first one with `RedirectMissingLocation`, leaving a
+    truncated video on the channel that never finishes processing.
+    googleapiclient's own `build_http()` does the same; we build our own Http
+    only to set the timeout.
+    """
+    http = httplib2.Http(timeout=60)
+    http.redirect_codes = http.redirect_codes - {308}
+    return http
+
+
 class YouTubeLiveClient:
     """Main entry point for the YouTube Live Streaming API.
 
@@ -53,7 +68,7 @@ class YouTubeLiveClient:
     def youtube(self) -> Resource:
         """Lazily build and cache the YouTube API resource."""
         if self._resource is None:
-            http = AuthorizedHttp(self._credentials, http=httplib2.Http(timeout=60))
+            http = AuthorizedHttp(self._credentials, http=_build_http())
             self._resource = build("youtube", "v3", http=http)
         return self._resource
 
