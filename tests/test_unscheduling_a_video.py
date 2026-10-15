@@ -132,7 +132,7 @@ class TestCli:
         )
 
         assert result.exit_code == 1
-        assert "Error: Cannot set a publish time and clear it" in result.output
+        assert "Error: Cannot set a publish time and clear it" in strip(result.output)
         assert mock_youtube.mock_calls == []
 
     def test_the_option_is_documented_in_help(self):
