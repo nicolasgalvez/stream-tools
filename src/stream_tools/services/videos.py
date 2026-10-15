@@ -303,7 +303,7 @@ class VideoService(BaseService):
         if clear_publish_at and publish_at is not None:
             raise ScheduleRefusedError(
                 "Cannot set a publish time and clear it in the same update; "
-                "pass one of publish_at or clear_publish_at."
+                "ask for one or the other."
             )
         try:
             current = self.get(video_id)

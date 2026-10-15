@@ -131,7 +131,7 @@ class TestCli:
         )
 
         assert result.exit_code == 1
-        assert "Error:" in result.output
+        assert "Error: Cannot set a publish time and clear it" in result.output
         assert mock_youtube.mock_calls == []
 
     def test_the_option_is_documented_in_help(self):
@@ -156,3 +156,13 @@ class TestMcp:
             server.video_update("abc123", title="x")
 
         assert client.videos.update.call_args.kwargs["clear_publish_at"] is False
+
+    def test_the_combined_request_comes_back_as_an_error_and_sends_nothing(self, mock_youtube):
+        scheduled(mock_youtube)
+        client = MagicMock()
+        client.videos = VideoService(mock_youtube)
+        with patch.object(server, "_get_client", return_value=client):
+            reply = server.video_update("abc123", publish_at=LATER, clear_publish_at=True)
+
+        assert reply.startswith("Error: Cannot set a publish time and clear it")
+        assert mock_youtube.mock_calls == []
