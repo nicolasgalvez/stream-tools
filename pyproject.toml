@@ -32,7 +32,8 @@ dev = [
     "ruff==0.16.6",
 ]
 mcp = [
-    "mcp>=1.12.0",
+    # <2: mcp 2.x renamed FastMCP to MCPServer, and the server imports FastMCP.
+    "mcp>=1.12.0,<2",
 ]
 
 [project.scripts]

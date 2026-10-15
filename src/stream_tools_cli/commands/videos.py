@@ -181,6 +181,11 @@ def update(
     category: str = typer.Option(None, "--category", "-c", help="New category ID"),
     privacy: str = typer.Option(None, "--privacy", "-p", help="private|public|unlisted"),
     publish_at: str = typer.Option(None, "--publish-at", help="ISO 8601 schedule"),
+    clear_publish_at: bool = typer.Option(
+        False,
+        "--clear-publish-at",
+        help="Remove the scheduled publish time (cannot be combined with --publish-at)",
+    ),
 ) -> None:
     """Update video metadata. Only provided options are changed."""
     tag_list = [t.strip() for t in tags.split(",")] if tags else None
@@ -195,6 +200,7 @@ def update(
             category_id=category,
             privacy_status=privacy,
             publish_at=publish_at,
+            clear_publish_at=clear_publish_at,
         )
         console.print("[green]Video updated.[/green]")
         output([video], VIDEO_COLUMNS, title="Video")

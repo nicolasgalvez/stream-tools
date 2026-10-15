@@ -23,6 +23,8 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - run: pip install -e ".[dev]"
+      # mcp too: the MCP server's tools are tested, and without the extra those
+      # tests cannot import.
+      - run: pip install -e ".[dev,mcp]"
       - run: ruff check src/ tests/
       - run: pytest tests/ -v

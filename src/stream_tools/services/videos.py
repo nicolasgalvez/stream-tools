@@ -284,6 +284,7 @@ class VideoService(BaseService):
         category_id: str | None = None,
         privacy_status: str | None = None,
         publish_at: str | None = None,
+        clear_publish_at: bool = False,
     ) -> Video:
         """Update metadata for an existing video.
 
@@ -297,10 +298,22 @@ class VideoService(BaseService):
             category_id: New category ID.
             privacy_status: "private", "public", or "unlisted".
             publish_at: ISO 8601 datetime (requires privacy=private).
+            clear_publish_at: Remove the video's scheduled publish time. Without
+                this an update keeps the existing one. Cannot be combined with
+                `publish_at`.
 
         Returns:
             Updated Video.
+
+        Raises:
+            ScheduleRefusedError: If both `publish_at` and `clear_publish_at`
+                are given. Raised before any request is made.
         """
+        if clear_publish_at and publish_at is not None:
+            raise ScheduleRefusedError(
+                "Cannot set a publish time and clear it in the same update; "
+                "ask for one or the other."
+            )
         try:
             current = self.get(video_id)
             body = current.to_api_body()
@@ -326,6 +339,8 @@ class VideoService(BaseService):
                 body["status"]["privacyStatus"] = privacy_status
             if publish_at is not None:
                 body["status"]["publishAt"] = publish_at
+            if clear_publish_at:
+                body["status"].pop("publishAt", None)
 
             response = self.youtube.videos().update(part="snippet,status", body=body).execute()
             return Video.from_api_response(response)
