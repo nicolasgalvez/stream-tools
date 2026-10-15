@@ -127,23 +127,32 @@ class VideoService(BaseService):
             return Video.from_api_response(response)
         except HttpError as e:
             if _is_redirect_missing_location(e):
-                raise self._committed_without_confirmation(title) from e
+                raise self._committed_without_confirmation(title, e) from e
             if _is_quota_exceeded(e):
                 raise QuotaExceededError() from e
             self._handle_api_error(e, "Video")
         except Exception as e:
             if _is_redirect_missing_location(e):
-                raise self._committed_without_confirmation(title) from e
+                raise self._committed_without_confirmation(title, e) from e
             raise
 
-    def _committed_without_confirmation(self, title: str) -> UploadCommittedError:
+    def _committed_without_confirmation(
+        self, title: str, error: Exception
+    ) -> UploadCommittedError:
         """Build the committed-upload error, recovering the video id if we can.
 
         Recovery is best-effort: failing to find the id must never hide the fact
         that the upload committed, because that fact is what stops a caller
         retrying and creating a duplicate.
+
+        The underlying error's type and text travel with the result: they are
+        all an operator has to diagnose why the lane halted.
         """
-        return UploadCommittedError(title=title, video_id=self._find_video_id_by_title(title))
+        return UploadCommittedError(
+            title=title,
+            video_id=self._find_video_id_by_title(title),
+            cause=f"{type(error).__name__}: {error}",
+        )
 
     def _uploads_playlist_id(self) -> str | None:
         """The playlist YouTube keeps of this channel's own uploads.
