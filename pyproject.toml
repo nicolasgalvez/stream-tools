@@ -23,7 +23,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pdoc>=16.0.0",
-    "pytest>=9.1.1",
+    "pytest>=9.2.0",
     "pytest-cov>=4.0",
     # Pinned exactly, not floored: unpinned, CI installed whatever ruff shipped
     # that day, so the gate passed or failed by the date rather than by the
