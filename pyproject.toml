@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "YouTube Live Stream management tool"
 requires-python = ">=3.11"
 dependencies = [
-    "google-api-python-client>=2.100.0",
+    "google-api-python-client>=2.201.0",
     "google-auth-oauthlib>=1.1.0",
     "google-auth>=2.57.1",
     "loguru>=0.7.3",
