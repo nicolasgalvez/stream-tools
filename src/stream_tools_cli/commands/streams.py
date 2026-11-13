@@ -9,6 +9,7 @@ from rich.console import Console
 from stream_tools.exceptions import StreamToolsError
 from stream_tools.models.common import BroadcastStatus, StreamFrameRate, StreamResolution
 from stream_tools_cli.commands import get_client
+from stream_tools_cli.exit_codes import EXIT_ERROR
 from stream_tools_cli.formatting import output
 from stream_tools_cli.state import common_options, config
 
@@ -339,10 +340,18 @@ def test(
         raise typer.Exit(1)
 
 
+WATCH_STREAM_ID_ENV = "YT_WATCH_STREAM_ID"
+
+
 @app.command()
 @common_options
 def watch(
-    stream_id: str = typer.Argument(..., help="Stream ID to monitor"),
+    stream_id: str = typer.Argument(
+        None,
+        envvar=WATCH_STREAM_ID_ENV,
+        show_envvar=True,
+        help="Stream ID to monitor. Never inferred from the stream list.",
+    ),
     interval: int = typer.Option(300, "--interval", "-i", help="Normal check interval in seconds"),
     fail_interval: int = typer.Option(
         30, "--fail-interval", "-f", help="Check interval when unhealthy"
@@ -375,7 +384,19 @@ def watch(
     Sends Discord notifications on failures and restarts if webhook is configured.
 
     Requires AZURACAST_* environment variables for restart functionality.
+
+    The stream comes from the argument or YT_WATCH_STREAM_ID. With neither, the
+    command exits before contacting YouTube, AzuraCast, or Discord: watching the
+    wrong stream restarts a healthy station.
     """
+    stream_id = (stream_id or "").strip()
+    if not stream_id:
+        console.print(
+            "[red]Error:[/red] No stream to watch. Pass a STREAM_ID or set "
+            f"{WATCH_STREAM_ID_ENV} (see `yt stream list`)."
+        )
+        raise typer.Exit(EXIT_ERROR)
+
     import time
     from datetime import datetime
 

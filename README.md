@@ -101,6 +101,7 @@ yt stream watch STREAM_ID                    # Monitor stream health
 yt stream watch STREAM_ID --no-restart       # Monitor only, no auto-restart
 yt stream watch STREAM_ID --interval 60      # Check every 60s instead of 300s
 yt stream watch STREAM_ID --discord URL      # Send notifications to Discord
+yt stream watch                              # Monitor the stream set in YT_WATCH_STREAM_ID
 ```
 
 All commands support interactive prompts. Flags skip the prompt for scripting use.
@@ -160,6 +161,19 @@ For servers without a browser (Docker, VPS, etc.):
    ```
 
 3. **Copy `.env`** to your remote server. The CLI will use the env vars automatically.
+
+### Stream monitor service
+
+`docker compose up -d` runs `yt stream watch` against the stream named by
+`YT_WATCH_STREAM_ID` in `.env`. Find the ID with `yt stream list` and set it:
+
+```bash
+YT_WATCH_STREAM_ID=your-stream-id
+```
+
+The service never picks a stream from the list. If `YT_WATCH_STREAM_ID` is unset
+or blank, it exits with an error before it contacts YouTube, restarts AzuraCast,
+or posts to Discord. A `STREAM_ID` argument overrides the setting.
 
 ## Library Usage
 
