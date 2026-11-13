@@ -108,7 +108,7 @@ scripts/docs build     # static HTML to docs/
 - **No CI workflows** (`.github/workflows/` absent). No `Makefile`.
 - **`tests/` is a package** (`__init__.py` present) — uncommon for plain pytest, intentional here.
 - **`scripts/export-yt-credentials`** is macOS/BSD-only (`sed -i ''`) and depends on `jq`.
-- **Docker runtime command** uses shell expansion: `yt stream watch $(yt stream list --format ids | head -1)`.
+- **Docker runtime command** is `yt stream watch`, which reads the stream ID from `YT_WATCH_STREAM_ID` and exits with an error when it is unset. Never select the stream by list position.
 - **`__pycache__`/`.pyc` present under `src/`** — should be gitignored; currently tracked accidentally.
 - **Auth priority**: env vars > `~/.config/stream-tools/token.json` > interactive browser. Env vars win for headless deploys.
 - **`pyproject.toml` `[tool.hatch.build.targets.wheel]`** lists both `src/stream_tools` and `src/stream_tools_cli` as packages — single distribution, two importable top-level packages.

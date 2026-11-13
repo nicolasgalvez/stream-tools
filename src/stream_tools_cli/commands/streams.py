@@ -9,6 +9,7 @@ from rich.console import Console
 from stream_tools.exceptions import StreamToolsError
 from stream_tools.models.common import BroadcastStatus, StreamFrameRate, StreamResolution
 from stream_tools_cli.commands import get_client
+from stream_tools_cli.exit_codes import EXIT_ERROR
 from stream_tools_cli.formatting import output
 from stream_tools_cli.state import common_options, config
 
@@ -72,6 +73,7 @@ def health(
 
         if config.format == OutputFormat.json:
             import json as json_module
+
             data = {
                 "id": stream.id,
                 "title": stream.title,
@@ -104,7 +106,9 @@ def health(
                     "warning": "yellow",
                     "info": "blue",
                 }.get(issue.severity.value, "white")
-                console.print(f"  [{severity_color}][{issue.severity.value}][/{severity_color}] {issue.type}: {issue.reason}")
+                console.print(
+                    f"  [{severity_color}][{issue.severity.value}][/{severity_color}] {issue.type}: {issue.reason}"
+                )
                 if issue.description:
                     console.print(f"           {issue.description}")
         else:
@@ -271,13 +275,37 @@ def test(
         # ffmpeg command: test pattern + sine wave tone
         cmd = [
             "ffmpeg",
-            "-f", "lavfi", "-i", f"testsrc=size=1280x720:rate=30:duration={duration}",
-            "-f", "lavfi", "-i", f"sine=frequency=1000:sample_rate=44100:duration={duration}",
-            "-c:v", "libx264", "-preset", "ultrafast", "-b:v", "3000k",
-            "-maxrate", "3000k", "-bufsize", "6000k",
-            "-pix_fmt", "yuv420p", "-g", "60",
-            "-c:a", "aac", "-b:a", "128k", "-ar", "44100",
-            "-f", "flv", rtmp_url,
+            "-f",
+            "lavfi",
+            "-i",
+            f"testsrc=size=1280x720:rate=30:duration={duration}",
+            "-f",
+            "lavfi",
+            "-i",
+            f"sine=frequency=1000:sample_rate=44100:duration={duration}",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "ultrafast",
+            "-b:v",
+            "3000k",
+            "-maxrate",
+            "3000k",
+            "-bufsize",
+            "6000k",
+            "-pix_fmt",
+            "yuv420p",
+            "-g",
+            "60",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "128k",
+            "-ar",
+            "44100",
+            "-f",
+            "flv",
+            rtmp_url,
         ]
 
         process = subprocess.Popen(cmd)
@@ -312,18 +340,38 @@ def test(
         raise typer.Exit(1)
 
 
+WATCH_STREAM_ID_ENV = "YT_WATCH_STREAM_ID"
+
+
 @app.command()
 @common_options
 def watch(
-    stream_id: str = typer.Argument(..., help="Stream ID to monitor"),
+    stream_id: str = typer.Argument(
+        None,
+        envvar=WATCH_STREAM_ID_ENV,
+        show_envvar=True,
+        help="Stream ID to monitor. Never inferred from the stream list.",
+    ),
     interval: int = typer.Option(300, "--interval", "-i", help="Normal check interval in seconds"),
-    fail_interval: int = typer.Option(30, "--fail-interval", "-f", help="Check interval when unhealthy"),
+    fail_interval: int = typer.Option(
+        30, "--fail-interval", "-f", help="Check interval when unhealthy"
+    ),
     fail_count: int = typer.Option(3, "--fail-count", "-c", help="Failures before restart"),
-    restart_wait: int = typer.Option(180, "--restart-wait", "-w", help="Seconds to wait after restart"),
-    restart_on_fail: bool = typer.Option(True, "--restart/--no-restart", help="Restart AzuraCast on failure"),
-    max_restarts: int = typer.Option(10, "--max-restarts", "-m", help="Max restart attempts before giving up"),
-    max_api_errors: int = typer.Option(10, "--max-api-errors", help="Max consecutive API errors before exiting"),
-    discord_webhook: str = typer.Option(None, "--discord", "-d", help="Discord webhook URL (or set DISCORD_WEBHOOK_URL)"),
+    restart_wait: int = typer.Option(
+        180, "--restart-wait", "-w", help="Seconds to wait after restart"
+    ),
+    restart_on_fail: bool = typer.Option(
+        True, "--restart/--no-restart", help="Restart AzuraCast on failure"
+    ),
+    max_restarts: int = typer.Option(
+        10, "--max-restarts", "-m", help="Max restart attempts before giving up"
+    ),
+    max_api_errors: int = typer.Option(
+        10, "--max-api-errors", help="Max consecutive API errors before exiting"
+    ),
+    discord_webhook: str = typer.Option(
+        None, "--discord", "-d", help="Discord webhook URL (or set DISCORD_WEBHOOK_URL)"
+    ),
 ) -> None:
     """Monitor stream health and optionally restart AzuraCast on failure.
 
@@ -336,7 +384,19 @@ def watch(
     Sends Discord notifications on failures and restarts if webhook is configured.
 
     Requires AZURACAST_* environment variables for restart functionality.
+
+    The stream comes from the argument or YT_WATCH_STREAM_ID. With neither, the
+    command exits before contacting YouTube, AzuraCast, or Discord: watching the
+    wrong stream restarts a healthy station.
     """
+    stream_id = (stream_id or "").strip()
+    if not stream_id:
+        console.print(
+            "[red]Error:[/red] No stream to watch. Pass a STREAM_ID or set "
+            f"{WATCH_STREAM_ID_ENV} (see `yt stream list`)."
+        )
+        raise typer.Exit(EXIT_ERROR)
+
     import time
     from datetime import datetime
 
@@ -401,7 +461,10 @@ def watch(
         # Fall back to ready/testing if no live broadcast found
         if not broadcast_id:
             for b in broadcasts.items:
-                if b.bound_stream_id == stream_id and b.life_cycle_status.value in ("ready", "testing"):
+                if b.bound_stream_id == stream_id and b.life_cycle_status.value in (
+                    "ready",
+                    "testing",
+                ):
                     broadcast_title = b.title
                     broadcast_id = b.id
                     broadcast_status = b.life_cycle_status.value
@@ -491,7 +554,9 @@ def watch(
                 else:
                     consecutive_failures += 1
                     # Always print unhealthy status
-                    console.print(f"[dim]{timestamp}[/dim] Health: [{color}]{health}[/{color}] [dim](failures: {consecutive_failures}/{fail_count})[/dim]")
+                    console.print(
+                        f"[dim]{timestamp}[/dim] Health: [{color}]{health}[/{color}] [dim](failures: {consecutive_failures}/{fail_count})[/dim]"
+                    )
 
                     # Send failure notification on first failure
                     if consecutive_failures == 1 and not notified_failure:
@@ -505,7 +570,9 @@ def watch(
                     # Check if we should restart
                     if restart_on_fail and consecutive_failures >= fail_count:
                         if total_restarts >= max_restarts:
-                            console.print(f"[red]Max restarts ({max_restarts}) reached. Giving up.[/red]")
+                            console.print(
+                                f"[red]Max restarts ({max_restarts}) reached. Giving up.[/red]"
+                            )
                             send_notification(
                                 "🛑 Stream Monitor Stopped",
                                 f"Max restarts ({max_restarts}) reached.\nStream ID: `{stream_id}`",
@@ -519,8 +586,12 @@ def watch(
                             total_restarts += 1
                             consecutive_failures = 0
                             notified_failure = False
-                            console.print(f"[green]Restarted.[/green] (total restarts: {total_restarts})")
-                            console.print(f"[dim]Waiting {restart_wait}s for stream to reconnect...[/dim]")
+                            console.print(
+                                f"[green]Restarted.[/green] (total restarts: {total_restarts})"
+                            )
+                            console.print(
+                                f"[dim]Waiting {restart_wait}s for stream to reconnect...[/dim]"
+                            )
                             send_notification(
                                 "🔄 AzuraCast Restarted",
                                 f"Backend restarted due to stream failure.\nTotal restarts: {total_restarts}\nWaiting {restart_wait}s...",
@@ -530,7 +601,9 @@ def watch(
 
                             # Check health after restart
                             stream = client.streams.get(stream_id)
-                            health_after = stream.health_status.value if stream.health_status else "noData"
+                            health_after = (
+                                stream.health_status.value if stream.health_status else "noData"
+                            )
                             if health_after in ("good", "ok"):
                                 send_notification(
                                     "✅ Stream Recovered",

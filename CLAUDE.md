@@ -59,7 +59,7 @@ Two top-level packages under `src/`, intentionally separated:
 
 ### Auth headless deploy
 
-The Docker setup (`Dockerfile` + `docker-compose.yml`) mounts `~/.config/stream-tools` into the container and runs `yt stream watch $(yt stream list --format ids | head -1)`. For VPS/headless use, run `./scripts/export-yt-credentials` locally to materialize `YT_CLIENT_ID`/`YT_CLIENT_SECRET`/`YT_REFRESH_TOKEN` into `.env`, then copy `.env` to the host — the env-var auth method will take priority over the token file.
+The Docker setup (`Dockerfile` + `docker-compose.yml`) mounts `~/.config/stream-tools` into the container and runs `yt stream watch`, which watches the stream ID in `YT_WATCH_STREAM_ID` and exits with an error when it is unset. For VPS/headless use, run `./scripts/export-yt-credentials` locally to materialize `YT_CLIENT_ID`/`YT_CLIENT_SECRET`/`YT_REFRESH_TOKEN` into `.env`, then copy `.env` to the host — the env-var auth method will take priority over the token file.
 
 ## Conventions
 
